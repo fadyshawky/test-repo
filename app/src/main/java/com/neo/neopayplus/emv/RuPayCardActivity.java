@@ -15,7 +15,7 @@ import com.neo.neopayplus.utils.LogUtil;
 import com.neo.neopayplus.utils.ThreadPoolUtil;
 import com.neo.neopayplus.wrapper.CheckCardCallbackV2Wrapper;
 import com.sunmi.pay.hardware.aidl.AidlConstants;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.bean.EMVCandidateV2;
 import com.sunmi.pay.hardware.aidlv2.bean.EMVTransDataV2;
 import com.sunmi.pay.hardware.aidlv2.emv.EMVListenerV2;

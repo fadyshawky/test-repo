@@ -18,4 +18,21 @@ public final class TimeUtil {
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         return sdf.format(new Date());
     }
+
+    /**
+     * Local time in YYMMDDhhmmss format (for ISO8583 DE12)
+     */
+    public static String localYYMMDDhhmmss() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmss", Locale.US);
+        return sdf.format(new Date());
+    }
+
+    /**
+     * GMT time in YYMMDDhhmm format (for ISO8583 DE7)
+     */
+    public static String gmtYYMMDDhhmm() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmm", Locale.US);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf.format(new Date());
+    }
 }

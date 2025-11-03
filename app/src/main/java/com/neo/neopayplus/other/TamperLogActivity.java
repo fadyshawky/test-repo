@@ -11,7 +11,7 @@ import com.neo.neopayplus.Constant;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.R;
 import com.neo.neopayplus.utils.LogUtil;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 /**
  * This is a test page, please do not refer to any code.

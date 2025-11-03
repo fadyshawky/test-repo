@@ -15,7 +15,7 @@ import com.neo.neopayplus.R;
 import com.neo.neopayplus.utils.ByteUtil;
 import com.neo.neopayplus.utils.DesAesUtil;
 import com.neo.neopayplus.utils.DeviceUtil;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 public class DukptAesSaveKeyActivity extends BaseAppCompatActivity {
     private static final String KEY128 = "FEDCBA9876543210F1F1F1F1F1F1F1F1";

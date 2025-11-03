@@ -69,8 +69,14 @@ public class ReversalWorker {
                 request.terminalId = PaymentConfig.getTerminalId();
                 request.merchantId = PaymentConfig.getMerchantId();
                 request.rrn = String.valueOf(reversal.get("rrn"));
-                request.amount = ((Number) reversal.get("amount_minor")).doubleValue() / 100.0;
-                request.currency = String.valueOf(reversal.get("currency"));
+                // Amount must be ISO-8583 DE4 format (12-digit numeric string)
+                long amountMinor = 0L;
+                Object amtObj = reversal.get("amount_minor");
+                if (amtObj instanceof Number) {
+                    amountMinor = ((Number) amtObj).longValue();
+                }
+                request.amount = String.format(java.util.Locale.US, "%012d", amountMinor);
+                request.currencyCode = String.valueOf(reversal.get("currency"));
                 request.reversalReason = String.valueOf(reversal.get("reason"));
                 
                 final Map<String, Object> finalReversal = reversal;

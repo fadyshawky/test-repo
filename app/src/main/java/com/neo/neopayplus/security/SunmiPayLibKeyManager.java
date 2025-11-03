@@ -5,7 +5,7 @@ import com.neo.neopayplus.Constant;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.utils.ByteUtil;
 import com.neo.neopayplus.utils.LogUtil;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.security.SecurityOptV2;
 
 /**
@@ -261,6 +261,142 @@ public class SunmiPayLibKeyManager {
      */
     public static int getPINKeyIndex(boolean useDUKPT) {
         return useDUKPT ? DUKPT_KEY_INDEX : TPK_INDEX;
+    }
+    
+    /**
+     * Unwrap key encrypted under TMK (3DES-ECB decrypt)
+     * 
+     * @param tmkSlot TMK slot number (typically 1)
+     * @param encryptedKey Key encrypted under TMK
+     * @return Unwrapped key or null if error
+     */
+    public static byte[] unwrapUnderTMK(int tmkSlot, byte[] encryptedKey) {
+        try {
+            SecurityOptV2 sec = MyApplication.app.securityOptV2;
+            if (sec == null) {
+                LogUtil.e(Constant.TAG, TAG + ": SecurityOptV2 not initialized");
+                return null;
+            }
+            
+            // 3DES-ECB decrypt using TMK in slot
+            android.os.Bundle bundle = new android.os.Bundle();
+            bundle.putInt("keyIndex", tmkSlot);
+            bundle.putInt("keyType", AidlConstantsV2.Security.KEY_TYPE_TMK);
+            bundle.putInt("dataMode", AidlConstantsV2.Security.DATA_MODE_ECB);
+            bundle.putByteArray("dataIn", encryptedKey);
+            
+            byte[] dataOut = new byte[encryptedKey.length];
+            int result = sec.dataDecryptEx(bundle, dataOut);
+            
+            if (result == 0) {
+                return dataOut;
+            } else {
+                LogUtil.e(Constant.TAG, TAG + ": Failed to unwrap key under TMK, code: " + result);
+                return null;
+            }
+        } catch (Exception e) {
+            LogUtil.e(Constant.TAG, TAG + ": Exception unwrapping key: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Load TPK (Terminal PIN Key) into slot
+     * 
+     * @param slot TPK slot number (typically 12)
+     * @param tpk TPK key bytes (16 or 32 bytes for 3DES)
+     * @return 0 if success, non-zero error code
+     */
+    public static int loadTpk(int slot, byte[] tpk) {
+        try {
+            SecurityOptV2 sec = MyApplication.app.securityOptV2;
+            if (sec == null) {
+                LogUtil.e(Constant.TAG, TAG + ": SecurityOptV2 not initialized");
+                return -1;
+            }
+            
+            android.os.Bundle bundle = new android.os.Bundle();
+            bundle.putInt("keyType", AidlConstantsV2.Security.KEY_TYPE_PIK);
+            bundle.putInt("keyIndex", slot);
+            bundle.putByteArray("keyValue", tpk);
+            bundle.putByteArray("checkValue", null); // Auto-calculate KCV
+            bundle.putInt("encryptIndex", TMK_INDEX); // Encrypted under TMK
+            bundle.putInt("keyAlgType", AidlConstantsV2.Security.KEY_ALG_TYPE_3DES);
+            
+            int result = sec.saveKeyEx(bundle);
+            if (result == 0) {
+                LogUtil.e(Constant.TAG, TAG + ": TPK loaded successfully at slot " + slot);
+            } else {
+                LogUtil.e(Constant.TAG, TAG + ": Failed to load TPK, code: " + result);
+            }
+            return result;
+        } catch (Exception e) {
+            LogUtil.e(Constant.TAG, TAG + ": Exception loading TPK: " + e.getMessage());
+            return -1;
+        }
+    }
+    
+    /**
+     * Load TAK (Terminal MAC Key) into slot
+     * 
+     * @param slot TAK slot number (typically 13)
+     * @param tak TAK key bytes (16 or 32 bytes for 3DES)
+     * @return 0 if success, non-zero error code
+     */
+    public static int loadTak(int slot, byte[] tak) {
+        try {
+            SecurityOptV2 sec = MyApplication.app.securityOptV2;
+            if (sec == null) {
+                LogUtil.e(Constant.TAG, TAG + ": SecurityOptV2 not initialized");
+                return -1;
+            }
+            
+            android.os.Bundle bundle = new android.os.Bundle();
+            bundle.putInt("keyType", AidlConstantsV2.Security.KEY_TYPE_MAK);
+            bundle.putInt("keyIndex", slot);
+            bundle.putByteArray("keyValue", tak);
+            bundle.putByteArray("checkValue", null); // Auto-calculate KCV
+            bundle.putInt("encryptIndex", TMK_INDEX); // Encrypted under TMK
+            bundle.putInt("keyAlgType", AidlConstantsV2.Security.KEY_ALG_TYPE_3DES);
+            
+            int result = sec.saveKeyEx(bundle);
+            if (result == 0) {
+                LogUtil.e(Constant.TAG, TAG + ": TAK loaded successfully at slot " + slot);
+            } else {
+                LogUtil.e(Constant.TAG, TAG + ": Failed to load TAK, code: " + result);
+            }
+            return result;
+        } catch (Exception e) {
+            LogUtil.e(Constant.TAG, TAG + ": Exception loading TAK: " + e.getMessage());
+            return -1;
+        }
+    }
+    
+    /**
+     * Calculate KCV (Key Check Value) for a key
+     * Uses 3DES encrypt of zero block (0000000000000000)
+     * 
+     * @param key Key bytes (16 or 32 bytes for 3DES)
+     * @return KCV as 6 hex characters, or null if error
+     */
+    public static String kcvOfKey(byte[] key) {
+        try {
+            // Simple KCV calculation: encrypt zero block with key using 3DES
+            // For 3DES, KCV is first 3 bytes of encrypted zero block
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("DESede/ECB/NoPadding");
+            javax.crypto.spec.SecretKeySpec keySpec = new javax.crypto.spec.SecretKeySpec(key, "DESede");
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, keySpec);
+            
+            byte[] zeroBlock = new byte[8];
+            byte[] kcvBytes = cipher.doFinal(zeroBlock);
+            
+            // KCV is first 3 bytes (6 hex characters)
+            return ByteUtil.bytes2HexStr(java.util.Arrays.copyOf(kcvBytes, 3));
+                
+        } catch (Exception e) {
+            LogUtil.e(Constant.TAG, TAG + ": Exception calculating KCV: " + e.getMessage());
+            return null;
+        }
     }
     
 }

@@ -15,6 +15,14 @@ public class MockHostGateway implements HostGateway {
     public HostResult signOn(SessionInfo s) {
         HostResult r = new HostResult();
         r.rc = "000";
+        
+        // For Master/Session model: return mock DE62 TLV with session keys
+        // In production, this will come from the actual host response
+        // Format: DF01 (version) + DF10 (TPK enc) + DF11 (TPK KCV) + DF12 (TAK enc) + DF13 (TAK KCV)
+        // For testing, return empty or mock TLV
+        // r.de62Bytes = buildMockDE62(); // Uncomment if needed for testing
+        r.de62Bytes = new byte[0]; // Empty for now; will be populated by real host response
+        
         return r;
     }
 

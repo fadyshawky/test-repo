@@ -295,23 +295,29 @@ public class MyApplication extends Application {
                         LogUtil.e(Constant.TAG, "⚠️ Transactions may fail - provisioning incomplete");
                     }
                     
-                    // Step 2: Fetch and initialize DUKPT keys from backend
-                    initializeDukptKeys(securityOptV2);
+                    // Step 2: Initialize keys based on configured model
+                    if (com.neo.neopayplus.config.PaymentConfig.isMasterSession()) {
+                        initializeMasterSessionKeys(securityOptV2);
+                    } else {
+                        initializeDukptKeys(securityOptV2);
+                        
+                        // Runtime check for DUKPT
+                        try {
+                            byte[] testKsn = new byte[10];
+                            boolean keysReady = (securityOptV2.dukptCurrentKSN(1100, testKsn) == 0);
+                            LogUtil.e(Constant.TAG, "Runtime check - DUKPT Keys ready: " + keysReady);
+                            if (keysReady) {
+                                LogUtil.e(Constant.TAG, "Runtime check - Current KSN: " + 
+                                    com.neo.neopayplus.utils.ByteUtil.bytes2HexStr(testKsn));
+                            }
+                        } catch (Exception e) {
+                            LogUtil.e(Constant.TAG, "Runtime check warning: " + e.getMessage());
+                        }
+                    }
                     
                     // Step 3: Runtime check - verify provisioning status
-                    try {
-                        byte[] testKsn = new byte[10];
-                        boolean keysReady = (securityOptV2.dukptCurrentKSN(1100, testKsn) == 0);
-                        LogUtil.e(Constant.TAG, "Runtime check - DUKPT Keys ready: " + keysReady);
-                        if (keysReady) {
-                            LogUtil.e(Constant.TAG, "Runtime check - Current KSN: " + 
-                                com.neo.neopayplus.utils.ByteUtil.bytes2HexStr(testKsn));
-                        }
-                        // Note: getAidList() may not be available in all SDK versions
-                        LogUtil.e(Constant.TAG, "Runtime check - AIDs loaded via EmvConfigurationManager");
-                    } catch (Exception e) {
-                        LogUtil.e(Constant.TAG, "Runtime check warning: " + e.getMessage());
-                    }
+                    // Note: getAidList() may not be available in all SDK versions
+                    LogUtil.e(Constant.TAG, "Runtime check - AIDs loaded via EmvConfigurationManager");
                 }).start();
             }
 
@@ -380,6 +386,81 @@ public class MyApplication extends Application {
 
     private void initEmvTTS() {
         EmvTTS.getInstance().init();
+    }
+    
+    /**
+     * Initialize Master/Session keys (TMK→TPK/TAK) via sign-on
+     * Performs ISO sign-on (0800) to obtain wrapped TPK/TAK in DE62, unwraps with TMK, installs to slots 12/13
+     * 
+     * @param securityOptV2 SecurityOptV2 instance for key injection
+     */
+    private void initializeMasterSessionKeys(SecurityOptV2 securityOptV2) {
+        LogUtil.e(Constant.TAG, "=== INITIALIZING MASTER/SESSION KEYS (TPK/TAK) ===");
+        LogUtil.e(Constant.TAG, "  Terminal ID: " + com.neo.neopayplus.config.PaymentConfig.getTerminalId());
+        LogUtil.e(Constant.TAG, "  Model: MASTER_SESSION (TPK/TAK under TMK)");
+        
+        if (!com.neo.neopayplus.config.PaymentConfig.isMasterSession()) {
+            LogUtil.e(Constant.TAG, "  Skipped: PaymentConfig not MASTER_SESSION");
+            return;
+        }
+        
+        // 1) Ensure TMK is loaded in slot #1 (either from prior provisioning, or invoke your TMK install flow)
+        boolean hasTmk = com.neo.neopayplus.security.KeyManagerPOS.hasKeyInstalled(
+            com.neo.neopayplus.security.KeyManagerPOS.KeySlots.TMK_SLOT_1);
+        if (!hasTmk) {
+            LogUtil.e(Constant.TAG, "❌ TMK not installed in slot #1. Install TMK first (technician/provisioning).");
+            return;
+        }
+        
+        // 2) Do ISO Sign-On (0800) to obtain wrapped TPK/TAK (DE62 TLV)
+        try {
+            com.neo.neopayplus.host.dto.SessionInfo sessionInfo = new com.neo.neopayplus.host.dto.SessionInfo();
+            sessionInfo.tid = com.neo.neopayplus.config.PaymentConfig.getTerminalId();
+            sessionInfo.mid = com.neo.neopayplus.config.PaymentConfig.getMerchantId();
+            sessionInfo.acquirerId = "000000"; // TODO: supply real acquirer id when available
+            
+            com.neo.neopayplus.host.HostGateway hostGateway = com.neo.neopayplus.utils.ServiceLocator.host();
+            if (hostGateway == null) {
+                LogUtil.e(Constant.TAG, "❌ HostGateway not initialized");
+                return;
+            }
+            
+            com.neo.neopayplus.host.dto.HostResult hr = hostGateway.signOn(sessionInfo);
+            if (!hr.isApproved()) {
+                LogUtil.e(Constant.TAG, "❌ Sign-on failed RC=" + hr.rc);
+                return;
+            }
+            
+            if (hr.de62Bytes == null || hr.de62Bytes.length == 0) {
+                LogUtil.e(Constant.TAG, "❌ Sign-on response missing DE62 (session keys)");
+                return;
+            }
+            
+            // 3) Parse DE62 TLV payload and install TPK/TAK
+            com.neo.neopayplus.keys.KeyTlv.SessionKeys sess = 
+                com.neo.neopayplus.keys.KeyTlv.parseKeySetFromDE62(hr.de62Bytes);
+            
+            boolean ok = com.neo.neopayplus.security.KeyManagerPOS.installSessionKeysUnderTmk(
+                com.neo.neopayplus.security.KeyManagerPOS.KeySlots.TMK_SLOT_1,
+                com.neo.neopayplus.security.KeyManagerPOS.KeySlots.TPK_SLOT_12,
+                com.neo.neopayplus.security.KeyManagerPOS.KeySlots.TAK_SLOT_13,
+                sess.tpkEnc, sess.tpkKcv,
+                sess.takEnc, sess.takKcv
+            );
+            
+            if (ok) {
+                LogUtil.e(Constant.TAG, "✓ Session keys installed (TPK→12, TAK→13), key_set_version=" + 
+                    (sess.keySetVersion != null ? sess.keySetVersion : "N/A"));
+                LogUtil.e(Constant.TAG, "  MAC field: DE128 (X9.19 Retail CBC-MAC)");
+                LogUtil.e(Constant.TAG, "  PIN: ISO-0 under TPK");
+            } else {
+                LogUtil.e(Constant.TAG, "❌ Failed to install session keys");
+            }
+            
+        } catch (Exception ex) {
+            LogUtil.e(Constant.TAG, "❌ Master/Session initialization error: " + ex.getMessage());
+            ex.printStackTrace();
+        }
     }
     
     /**
@@ -488,11 +569,11 @@ public class MyApplication extends Application {
             
             // Inject DUKPT keys using SecurityOptV2
             int result = securityOptV2.saveKeyDukpt(
-                com.sunmi.pay.hardware.aidlv2.AidlConstantsV2.Security.KEY_TYPE_DUPKT_IPEK,
+                com.sunmi.payservice.AidlConstantsV2.Security.KEY_TYPE_DUPKT_IPEK,
                 ipekBytes,
                 null, // checkValue (auto-calculate)
                 ksnBytes,
-                com.sunmi.pay.hardware.aidlv2.AidlConstantsV2.Security.KEY_ALG_TYPE_3DES,
+                com.sunmi.payservice.AidlConstantsV2.Security.KEY_ALG_TYPE_3DES,
                 keyIndex
             );
             

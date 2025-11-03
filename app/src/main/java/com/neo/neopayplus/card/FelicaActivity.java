@@ -19,7 +19,7 @@ import com.neo.neopayplus.utils.LogUtil;
 import com.neo.neopayplus.utils.Utility;
 import com.sunmi.pay.hardware.aidl.AidlConstants;
 import com.sunmi.pay.hardware.aidl.AidlConstants.CardType;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.bean.ApduRecvV2;
 import com.sunmi.pay.hardware.aidlv2.bean.ApduSendV2;
 import com.sunmi.pay.hardware.aidlv2.readcard.CheckCardCallbackV2;

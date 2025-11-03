@@ -283,6 +283,36 @@ public class PaymentConfig {
         public static final String FLOOR_LIMIT_ZERO = "000000000000";
     }
     
+    // ==================== KEY MODEL ====================
+    
+    /**
+     * Key Management Model
+     * Controls whether POS uses DUKPT or Master/Session (TMK→TPK/TAK) key model
+     */
+    public enum KeyModel {
+        DUKPT,
+        MASTER_SESSION   // TMK → TPK/TAK session keys
+    }
+    
+    /**
+     * Active Key Model (default: MASTER_SESSION for production)
+     */
+    private static KeyModel KEY_MODEL = KeyModel.MASTER_SESSION;
+    
+    /**
+     * Get current key model
+     */
+    public static KeyModel getKeyModel() {
+        return KEY_MODEL;
+    }
+    
+    /**
+     * Check if using Master/Session key model
+     */
+    public static boolean isMasterSession() {
+        return KEY_MODEL == KeyModel.MASTER_SESSION;
+    }
+    
     // ==================== VALIDATION ====================
     
     /**

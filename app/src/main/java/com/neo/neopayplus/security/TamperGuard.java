@@ -7,7 +7,7 @@ import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.utils.LogUtil;
 
 import android.os.Bundle;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.security.SecurityOptV2;
 
 /**

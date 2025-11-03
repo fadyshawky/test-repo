@@ -20,7 +20,7 @@ import com.neo.neopayplus.data.DataViewActivity;
 import com.neo.neopayplus.pin.PinInputActivity;
 import com.neo.neopayplus.utils.LogUtil;
 import com.neo.neopayplus.wrapper.CheckCardCallbackV2Wrapper;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.emv.EMVListenerV2;
 import com.sunmi.pay.hardware.aidlv2.emv.EMVOptV2;
 import com.sunmi.pay.hardware.aidlv2.pinpad.PinPadListenerV2;
@@ -1431,8 +1431,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                         authRequest.ksn = ksn;
                     }
                     
-                    // Add STAN and entry mode to request
-                    authRequest.stan = String.format("%06d", currentStan);
+                    // STAN is already set via generateStan() - AuthorizationRequest doesn't have stan field
                     
                     LogUtil.e(Constant.TAG, "✓ Extracted EMV tags:");
                     LogUtil.e(Constant.TAG, "  STAN: " + currentStan);
@@ -1458,24 +1457,28 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 // (Non-invasive) POS-only host gateway call for 1200 (mock)
                 try {
                     com.neo.neopayplus.host.dto.PurchaseReq req = new com.neo.neopayplus.host.dto.PurchaseReq();
-                    req.pan = mCardNo != null ? mCardNo : "";
-                    req.amount = String.format(java.util.Locale.US, "%012d", Long.parseLong(mAmount));
-                    req.stan = String.format(java.util.Locale.US, "%06d", currentStan);
-                    req.localDateTime = com.neo.neopayplus.utils.TimeUtil.localTs();
-                    req.expiry = "0000"; // fill if available
-                    req.mcc = "0000"; // fill if available
-                    req.currency = com.neo.neopayplus.config.PaymentConfig.getCurrencyCode();
+                    req.panMasked = lastPanMasked != null ? lastPanMasked : (mCardNo != null ? maskCardNumber(mCardNo) : "");
+                    req.de3 = "000000"; // Processing Code
+                    req.de4 = String.format(java.util.Locale.US, "%012d", Long.parseLong(mAmount)); // Amount (minor units)
+                    req.de11 = String.format(java.util.Locale.US, "%06d", currentStan); // STAN
+                    // DE12: Local time (hhmmss) - extract from YYMMDDhhmmss
+                    String localFull = com.neo.neopayplus.utils.TimeUtil.localYYMMDDhhmmss(); // Returns "yyMMddHHmmss"
+                    req.de12 = localFull.substring(6); // Extract "HHmmss" part
+                    req.de7 = com.neo.neopayplus.utils.TimeUtil.gmtYYMMDDhhmm(); // DE7: Transmission datetime (YYMMDDhhmm) - GMT
+                    req.de14 = "0000"; // Expiry (YYMM) - fill if available
+                    req.de18 = "0000"; // MCC - fill if available
                     req.de22 = currentEntryMode != null ? currentEntryMode : com.neo.neopayplus.utils.EntryModeUtil.de22(mCardType, pinEnteredThisTxn, fallbackUsed);
-                    req.de24 = "200";
-                    req.acq = "000000"; // supply real acquirer id when available
-                    req.tid = com.neo.neopayplus.config.PaymentConfig.getTerminalId();
-                    req.mid = com.neo.neopayplus.config.PaymentConfig.getMerchantId();
+                    req.de24 = "200"; // Function code for purchase
+                    req.de32 = "000000"; // Acquirer ID (LLVAR) - supply real acquirer id when available
+                    req.de41 = com.neo.neopayplus.config.PaymentConfig.getTerminalId(); // TID
+                    req.de42 = com.neo.neopayplus.config.PaymentConfig.getMerchantId(); // MID
+                    req.de49 = com.neo.neopayplus.config.PaymentConfig.getCurrencyCode(); // Currency
                     req.de55 = (currentAid != null || currentTsi != null || currentTvr != null) ? new byte[0] : new byte[0]; // placeholder
                     req.pinPresent = (mOnlinePinBlock != null && mOnlinePinBlock.length > 0);
                     if (req.pinPresent) req.de52 = mOnlinePinBlock;
                     
                     com.neo.neopayplus.host.dto.HostResult mockResp = com.neo.neopayplus.utils.ServiceLocator.host().purchase(req);
-                    LogUtil.e(Constant.TAG, "[HostGateway] purchase rc=" + mockResp.rc + ", rrn=" + mockResp.rrn + ", auth=" + mockResp.auth);
+                    LogUtil.e(Constant.TAG, "[HostGateway] purchase rc=" + mockResp.rc + ", rrn=" + mockResp.rrn + ", auth=" + mockResp.authCode);
                 } catch (Throwable th) {
                     LogUtil.e(Constant.TAG, "[HostGateway] purchase mock call error: " + th.getMessage());
                 }
@@ -2126,11 +2129,11 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             
             // Save DUKPT key (IPEK)
             int result = mSecurityOptV2.saveKeyDukpt(
-                com.sunmi.pay.hardware.aidlv2.AidlConstantsV2.Security.KEY_TYPE_DUPKT_IPEK,
+                com.sunmi.payservice.AidlConstantsV2.Security.KEY_TYPE_DUPKT_IPEK,
                 ipekBytes,
                 null, // checkValue (optional)
                 ksnBytes,
-                com.sunmi.pay.hardware.aidlv2.AidlConstantsV2.Security.KEY_ALG_TYPE_3DES,
+                com.sunmi.payservice.AidlConstantsV2.Security.KEY_ALG_TYPE_3DES,
                 keyIndex
             );
             

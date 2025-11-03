@@ -38,7 +38,7 @@ import org.json.JSONObject;
 import com.neo.neopayplus.wrapper.CheckCardCallbackV2Wrapper;
 import com.neo.neopayplus.wrapper.PinPadListenerV2Wrapper;
 import com.sunmi.pay.hardware.aidl.bean.CardInfo;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.AidlErrorCodeV2;
 import com.sunmi.pay.hardware.aidlv2.bean.EMVCandidateV2;
 import com.sunmi.pay.hardware.aidlv2.bean.PinPadConfigV2;

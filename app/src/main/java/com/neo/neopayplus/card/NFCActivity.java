@@ -18,7 +18,7 @@ import com.neo.neopayplus.utils.SettingUtil;
 import com.neo.neopayplus.utils.Utility;
 import com.neo.neopayplus.wrapper.CheckCardCallbackV2Wrapper;
 import com.sunmi.pay.hardware.aidl.AidlConstants.CardType;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.readcard.CheckCardCallbackV2;
 
 public class NFCActivity extends BaseAppCompatActivity {

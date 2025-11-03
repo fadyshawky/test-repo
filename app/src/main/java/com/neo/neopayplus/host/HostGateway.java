@@ -1,5 +1,13 @@
 package com.neo.neopayplus.host;
 
+import com.neo.neopayplus.host.dto.HostResult;
+import com.neo.neopayplus.host.dto.SessionInfo;
+import com.neo.neopayplus.host.dto.KeyChangeReq;
+import com.neo.neopayplus.host.dto.PurchaseReq;
+import com.neo.neopayplus.host.dto.ReversalReq;
+import com.neo.neopayplus.host.dto.SettlementReq;
+import com.neo.neopayplus.host.dto.PinReq;
+
 public interface HostGateway {
     HostResult signOn(SessionInfo sessionInfo);
     HostResult keyChange(KeyChangeReq request);

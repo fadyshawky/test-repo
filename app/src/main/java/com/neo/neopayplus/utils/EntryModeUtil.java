@@ -1,6 +1,6 @@
 package com.neo.neopayplus.utils;
 
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 /**
  * Entry Mode Utility
@@ -31,8 +31,7 @@ public class EntryModeUtil {
         if (fallback) {
             // Magnetic stripe fallback
             posEntry = pinEntered ? 802 : 801;
-        } else if (cardType == AidlConstantsV2.CardType.NFC.getValue() || 
-                   cardType == AidlConstantsV2.CardType.CONTACTLESS.getValue()) {
+        } else if (cardType == AidlConstantsV2.CardType.NFC.getValue() || cardType == AidlConstantsV2.CardType.CONTACTLESS.getValue()) {
             // Contactless/NFC
             posEntry = pinEntered ? 71 : 72;
         } else {

@@ -12,7 +12,7 @@ import com.neo.neopayplus.BaseAppCompatActivity;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.R;
 import com.neo.neopayplus.utils.ByteUtil;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 public class InjectCiphertextKeyActivity extends BaseAppCompatActivity {
     private EditText mEditTargetPkgName;

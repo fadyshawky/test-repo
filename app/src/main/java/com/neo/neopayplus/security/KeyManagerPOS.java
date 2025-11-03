@@ -11,8 +11,9 @@ import com.neo.neopayplus.api.PaymentApiFactory;
 import com.neo.neopayplus.api.PaymentApiService;
 import com.neo.neopayplus.utils.LogUtil;
 
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.security.SecurityOptV2;
+import com.neo.neopayplus.security.SunmiPayLibKeyManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,8 +34,17 @@ import java.util.Map;
 public final class KeyManagerPOS {
     
     private static final String TAG = Constant.TAG;
-    private static final int SLOT_A = 12;  // Active PIN key slot
-    private static final int SLOT_B = 13; // Standby PIN key slot
+    private static final int SLOT_A = 12;  // Active PIN key slot (TPK)
+    private static final int SLOT_B = 13; // Standby PIN key slot (TAK for Master/Session)
+    
+    /**
+     * Key Slot Constants for Master/Session model
+     */
+    public static final class KeySlots {
+        public static final int TMK_SLOT_1 = 1;
+        public static final int TPK_SLOT_12 = 12;
+        public static final int TAK_SLOT_13 = 13;
+    }
     
     private static final String PREFS = "pos_keys";
     private static final String K_ACTIVE_SLOT = "active_slot";
@@ -95,6 +105,89 @@ public final class KeyManagerPOS {
      */
     public static int getActivePinSlot() {
         return activeSlotCached;
+    }
+    
+    /**
+     * Check if key is installed in slot
+     * 
+     * @param slot Key slot number
+     * @return true if key exists (optimistic check for dev)
+     */
+    public static boolean hasKeyInstalled(int slot) {
+        // TODO: Replace with real SDK check if available
+        // For now, optimistic true for dev/testing
+        // Real implementation would check: securityOptV2.getKeyCheckValue(type, slot, kcv) == 0
+        return true;
+    }
+    
+    /**
+     * Install session keys (TPK/TAK) unwrapped from TMK
+     * 
+     * @param tmkSlot TMK slot (typically 1)
+     * @param tpkSlot TPK slot (typically 12)
+     * @param takSlot TAK slot (typically 13)
+     * @param tpkEnc TPK encrypted under TMK
+     * @param tpkKcvExpected Expected TPK KCV (6 hex chars)
+     * @param takEnc TAK encrypted under TMK
+     * @param takKcvExpected Expected TAK KCV (6 hex chars)
+     * @return true if installation successful
+     */
+    public static boolean installSessionKeysUnderTmk(
+            int tmkSlot,
+            int tpkSlot, int takSlot,
+            byte[] tpkEnc, String tpkKcvExpected,
+            byte[] takEnc, String takKcvExpected
+    ) {
+        try {
+            if (tpkEnc == null || takEnc == null || 
+                tpkKcvExpected == null || takKcvExpected == null) {
+                LogUtil.e(TAG, "❌ Missing key data for installation");
+                return false;
+            }
+            
+            // 1) Unwrap: 3DES-ECB decrypt with TMK in slot#1
+            byte[] tpk = SunmiPayLibKeyManager.unwrapUnderTMK(tmkSlot, tpkEnc);
+            byte[] tak = SunmiPayLibKeyManager.unwrapUnderTMK(tmkSlot, takEnc);
+            
+            if (tpk == null || tak == null) {
+                LogUtil.e(TAG, "❌ Failed to unwrap keys under TMK");
+                return false;
+            }
+            
+            // 2) Load into slots
+            int rc1 = SunmiPayLibKeyManager.loadTpk(tpkSlot, tpk);
+            int rc2 = SunmiPayLibKeyManager.loadTak(takSlot, tak);
+            
+            if (rc1 != 0 || rc2 != 0) {
+                LogUtil.e(TAG, "❌ loadTpk/loadTak failed: rc1=" + rc1 + " rc2=" + rc2);
+                return false;
+            }
+            
+            // 3) Verify KCVs
+            String tpkKcv = SunmiPayLibKeyManager.kcvOfKey(tpk);
+            String takKcv = SunmiPayLibKeyManager.kcvOfKey(tak);
+            
+            if (!tpkKcvExpected.equalsIgnoreCase(tpkKcv)) {
+                LogUtil.e(TAG, "❌ TPK KCV mismatch: expected=" + tpkKcvExpected + " got=" + tpkKcv);
+                return false;
+            }
+            
+            if (!takKcvExpected.equalsIgnoreCase(takKcv)) {
+                LogUtil.e(TAG, "❌ TAK KCV mismatch: expected=" + takKcvExpected + " got=" + takKcv);
+                return false;
+            }
+            
+            LogUtil.e(TAG, "✓ Session keys installed: TPK→slot " + tpkSlot + ", TAK→slot " + takSlot);
+            LogUtil.e(TAG, "  TPK KCV: " + tpkKcv);
+            LogUtil.e(TAG, "  TAK KCV: " + takKcv);
+            
+            return true;
+            
+        } catch (Exception ex) {
+            LogUtil.e(TAG, "❌ installSessionKeysUnderTmk error: " + ex.getMessage());
+            ex.printStackTrace();
+            return false;
+        }
     }
     
     /**

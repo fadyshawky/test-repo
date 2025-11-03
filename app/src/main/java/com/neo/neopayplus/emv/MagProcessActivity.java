@@ -18,7 +18,7 @@ import com.neo.neopayplus.utils.LogUtil;
 import com.neo.neopayplus.utils.ThreadPoolUtil;
 import com.neo.neopayplus.utils.Utility;
 import com.neo.neopayplus.wrapper.PinPadListenerV2Wrapper;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.AidlErrorCodeV2;
 import com.sunmi.pay.hardware.aidlv2.bean.PinPadConfigV2;
 import com.sunmi.pay.hardware.aidlv2.pinpad.PinPadListenerV2;

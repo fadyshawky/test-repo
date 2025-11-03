@@ -11,7 +11,7 @@ import com.neo.neopayplus.config.PaymentConfig;
 import com.neo.neopayplus.utils.ByteUtil;
 import com.neo.neopayplus.utils.LogUtil;
 import com.neo.neopayplus.utils.PreferencesUtil;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.bean.AidV2;
 import com.sunmi.pay.hardware.aidlv2.bean.CapkV2;
 import com.sunmi.pay.hardware.aidlv2.bean.EmvTermParamV2;

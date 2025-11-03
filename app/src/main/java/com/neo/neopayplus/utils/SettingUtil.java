@@ -4,7 +4,7 @@ import android.text.TextUtils;
 
 import com.neo.neopayplus.Constant;
 import com.neo.neopayplus.MyApplication;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 import org.json.JSONObject;
 

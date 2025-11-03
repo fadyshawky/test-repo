@@ -17,7 +17,7 @@ import com.neo.neopayplus.utils.LogUtil;
 import com.neo.neopayplus.utils.PreferencesUtil;
 import com.neo.neopayplus.utils.SettingUtil;
 import com.neo.neopayplus.utils.Utility;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 import java.util.ArrayList;
 import java.util.List;

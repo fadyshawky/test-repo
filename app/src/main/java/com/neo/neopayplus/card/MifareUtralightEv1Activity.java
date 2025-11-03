@@ -15,7 +15,7 @@ import com.neo.neopayplus.wrapper.CheckCardCallbackV2Wrapper;
 import com.neo.neopayplus.utils.ByteUtil;
 import com.neo.neopayplus.utils.LogUtil;
 import com.sunmi.pay.hardware.aidl.AidlConstants.CardType;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -8,7 +8,7 @@ import androidx.appcompat.widget.Toolbar;
 import com.neo.neopayplus.BaseAppCompatActivity;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.R;
-import com.sunmi.pay.hardware.aidlv2.AidlConstantsV2;
+import com.sunmi.payservice.AidlConstantsV2;
 import com.sunmi.pay.hardware.aidlv2.system.BasicOptV2;
 
 public class ScreenModelActivity extends BaseAppCompatActivity {
