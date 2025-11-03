@@ -1,0 +1,618 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.neo.neopayplus"
+4    android:versionCode="1"
+5    android:versionName="v1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="22"
+8-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml
+9        android:targetSdkVersion="33" />
+9-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml
+10
+11    <!-- Network permission (required for API calls) -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:7:5-67
+12-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:7:22-64
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:8:5-79
+13-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:8:22-76
+14
+15    <!-- Sunmi PayLib permissions -->
+16    <uses-permission android:name="com.sunmi.perm.LED" />
+16-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:11:5-58
+16-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:11:22-55
+17    <uses-permission android:name="com.sunmi.perm.MSR" />
+17-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:12:5-58
+17-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:12:22-55
+18    <uses-permission android:name="com.sunmi.perm.ICC" />
+18-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:13:5-58
+18-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:13:22-55
+19    <uses-permission android:name="com.sunmi.perm.PINPAD" />
+19-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:14:5-61
+19-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:14:22-58
+20    <uses-permission android:name="com.sunmi.perm.SECURITY" />
+20-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:15:5-63
+20-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:15:22-60
+21    <uses-permission android:name="com.sunmi.perm.CONTACTLESS_CARD" />
+21-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:16:5-71
+21-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:16:22-68
+22
+23    <!-- Android system permissions -->
+24    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+24-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:19:5-75
+24-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:19:22-72
+25    <uses-permission android:name="android.permission.SET_TIME" />
+25-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:20:5-67
+25-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:20:22-64
+26    <uses-permission android:name="android.permission.WAKE_LOCK" />
+26-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:21:5-68
+26-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:21:22-65
+27    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+27-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:22:5-81
+27-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:22:22-78
+28    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+28-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:23:5-80
+28-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:23:22-77
+29    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+29-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:25:5-27:53
+29-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:26:9-61
+30
+31    <queries>
+31-->[:PayLib-release-2.0.32:] /Users/fady/.gradle/caches/transforms-3/0e0399af8bc715a7a4a651c682c93ffe/transformed/PayLib-release-2.0.32/AndroidManifest.xml:9:5-11:15
+32        <package android:name="com.sunmi.pay.hardware_v3" />
+32-->[:PayLib-release-2.0.32:] /Users/fady/.gradle/caches/transforms-3/0e0399af8bc715a7a4a651c682c93ffe/transformed/PayLib-release-2.0.32/AndroidManifest.xml:10:9-61
+32-->[:PayLib-release-2.0.32:] /Users/fady/.gradle/caches/transforms-3/0e0399af8bc715a7a4a651c682c93ffe/transformed/PayLib-release-2.0.32/AndroidManifest.xml:10:18-58
+33    </queries>
+34
+35    <permission
+35-->[androidx.core:core:1.9.0] /Users/fady/.gradle/caches/transforms-3/6572e896cf691f4b13ad10c561cb3105/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+36        android:name="com.neo.neopayplus.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+36-->[androidx.core:core:1.9.0] /Users/fady/.gradle/caches/transforms-3/6572e896cf691f4b13ad10c561cb3105/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+37        android:protectionLevel="signature" />
+37-->[androidx.core:core:1.9.0] /Users/fady/.gradle/caches/transforms-3/6572e896cf691f4b13ad10c561cb3105/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+38
+39    <uses-permission android:name="com.neo.neopayplus.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+39-->[androidx.core:core:1.9.0] /Users/fady/.gradle/caches/transforms-3/6572e896cf691f4b13ad10c561cb3105/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+39-->[androidx.core:core:1.9.0] /Users/fady/.gradle/caches/transforms-3/6572e896cf691f4b13ad10c561cb3105/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+40
+41    <application
+41-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:29:5-229:19
+42        android:name="com.neo.neopayplus.MyApplication"
+42-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:30:9-38
+43        android:allowBackup="true"
+43-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:31:9-35
+44        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+44-->[androidx.core:core:1.9.0] /Users/fady/.gradle/caches/transforms-3/6572e896cf691f4b13ad10c561cb3105/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
+45        android:debuggable="true"
+46        android:icon="@mipmap/ic_launcher"
+46-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:32:9-43
+47        android:label="@string/app_name"
+47-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:33:9-41
+48        android:networkSecurityConfig="@xml/network_security_config"
+48-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:34:9-69
+49        android:roundIcon="@mipmap/ic_launcher_round"
+49-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:35:9-54
+50        android:supportsRtl="true"
+50-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:36:9-35
+51        android:testOnly="true"
+52        android:theme="@style/AppTheme" >
+52-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:37:9-40
+53        <activity
+53-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:39:9-47:20
+54            android:name="com.neo.neopayplus.MainActivity"
+54-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:40:13-41
+55            android:exported="true" >
+55-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:41:13-36
+56            <intent-filter>
+56-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:42:13-46:29
+57                <action android:name="android.intent.action.MAIN" />
+57-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:43:17-69
+57-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:43:25-66
+58
+59                <category android:name="android.intent.category.LAUNCHER" />
+59-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:45:17-77
+59-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:45:27-74
+60            </intent-filter>
+61        </activity>
+62        <activity android:name="com.neo.neopayplus.basic.LedActivity" />
+62-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:48:9-55
+62-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:48:19-52
+63        <activity android:name="com.neo.neopayplus.basic.LedAdditionalActivity" />
+63-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:49:9-65
+63-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:49:19-62
+64        <activity android:name="com.neo.neopayplus.basic.BasicActivity" />
+64-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:50:9-57
+64-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:50:19-54
+65        <activity android:name="com.neo.neopayplus.basic.BuzzerActivity" />
+65-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:51:9-58
+65-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:51:19-55
+66        <activity android:name="com.neo.neopayplus.basic.GetSysParamActivity" />
+66-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:52:9-63
+66-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:52:19-60
+67        <activity android:name="com.neo.neopayplus.basic.SetSysParamActivity" />
+67-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:53:9-63
+67-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:53:19-60
+68        <activity android:name="com.neo.neopayplus.basic.ScreenModelActivity" />
+68-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:54:9-63
+68-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:54:19-60
+69        <activity android:name="com.neo.neopayplus.basic.DynamicPermissionAndWifiProxyActivity" />
+69-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:55:9-81
+69-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:55:19-78
+70        <activity android:name="com.neo.neopayplus.basic.CACertManageActivity" />
+70-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:56:9-64
+70-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:56:19-61
+71        <activity android:name="com.neo.neopayplus.basic.CPUInfoActivity" />
+71-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:57:9-59
+71-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:57:19-56
+72        <activity android:name="com.neo.neopayplus.basic.ScheduleRebootActivity" />
+72-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:58:9-66
+72-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:58:19-63
+73        <activity android:name="com.neo.neopayplus.basic.CustomizeFunctionKeyActivity" />
+73-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:59:9-72
+73-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:59:19-69
+74        <activity android:name="com.neo.neopayplus.basic.LowMemoryKillerActivity" />
+74-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:60:9-67
+74-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:60:19-64
+75        <activity android:name="com.neo.neopayplus.basic.PinAntiExhaustiveMode" />
+75-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:61:9-65
+75-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:61:19-62
+76        <activity android:name="com.neo.neopayplus.basic.EMVCallbackTimeActivity" />
+76-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:62:9-67
+76-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:62:19-64
+77        <activity android:name="com.neo.neopayplus.basic.SysSetWakeupActivity" />
+77-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:63:9-64
+77-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:63:19-61
+78        <activity android:name="com.neo.neopayplus.basic.KBBeepModeActivity" />
+78-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:64:9-62
+78-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:64:19-59
+79        <activity android:name="com.neo.neopayplus.basic.TransmissionTestActivity" />
+79-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:65:9-68
+79-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:65:19-65
+80        <activity android:name="com.neo.neopayplus.basic.SharedLibActivity" />
+80-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:66:9-61
+80-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:66:19-58
+81        <activity android:name="com.neo.neopayplus.basic.LitesoActivity" />
+81-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:67:9-58
+81-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:67:19-55
+82        <activity android:name="com.neo.neopayplus.basic.NetworkManageActivity" />
+82-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:68:9-65
+82-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:68:19-62
+83        <activity android:name="com.neo.neopayplus.basic.PhoneManageActivity" />
+83-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:69:9-63
+83-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:69:19-60
+84        <activity android:name="com.neo.neopayplus.basic.DeviceManageActivity" />
+84-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:70:9-64
+84-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:70:19-61
+85        <activity android:name="com.neo.neopayplus.basic.PedActivity" />
+85-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:71:9-55
+85-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:71:19-52
+86        <activity android:name="com.neo.neopayplus.basic.RTCBatterVolActivity" />
+86-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:72:9-64
+86-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:72:19-61
+87        <activity android:name="com.neo.neopayplus.basic.GetTamperLogActivity" />
+87-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:73:9-64
+87-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:73:19-61
+88        <activity android:name="com.neo.neopayplus.biometric.BiometricActivity" />
+88-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:75:9-65
+88-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:75:19-62
+89        <activity android:name="com.neo.neopayplus.card.CardActivity" />
+89-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:77:9-55
+89-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:77:19-52
+90        <activity android:name="com.neo.neopayplus.card.MagActivity" />
+90-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:78:9-54
+90-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:78:19-51
+91        <activity android:name="com.neo.neopayplus.card.MagPresetTrackActivity" />
+91-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:79:9-65
+91-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:79:19-62
+92        <activity android:name="com.neo.neopayplus.card.MagEncActivity" />
+92-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:80:9-57
+92-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:80:19-54
+93        <activity android:name="com.neo.neopayplus.card.MagTrack2EncActivity" />
+93-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:81:9-63
+93-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:81:19-60
+94        <activity android:name="com.neo.neopayplus.card.ICActivity" />
+94-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:82:9-53
+94-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:82:19-50
+95        <activity android:name="com.neo.neopayplus.card.NFCActivity" />
+95-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:83:9-54
+95-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:83:19-51
+96        <activity android:name="com.neo.neopayplus.card.CompositeActivity" />
+96-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:84:9-60
+96-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:84:19-57
+97        <activity android:name="com.neo.neopayplus.card.M1Activity" />
+97-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:85:9-53
+97-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:85:19-50
+98        <activity
+98-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:86:9-89:57
+99            android:name="com.neo.neopayplus.card.SAMActivity"
+99-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:87:13-45
+100            android:screenOrientation="portrait"
+100-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:88:13-49
+101            android:windowSoftInputMode="stateHidden" />
+101-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:89:13-54
+102        <activity
+102-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:90:9-92:57
+103            android:name="com.neo.neopayplus.card.SAMMultiActivity"
+103-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:91:13-50
+104            android:windowSoftInputMode="stateHidden" />
+104-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:92:13-54
+105        <activity android:name="com.neo.neopayplus.card.FelicaActivity" />
+105-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:93:9-57
+105-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:93:19-54
+106        <activity android:name="com.neo.neopayplus.card.MifareUltralightCActivity" />
+106-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:94:9-68
+106-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:94:19-65
+107        <activity android:name="com.neo.neopayplus.card.MifareUtralightEv1Activity" />
+107-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:95:9-69
+107-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:95:19-66
+108        <activity android:name="com.neo.neopayplus.card.MifareDesfireEv2Activity" />
+108-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:96:9-67
+108-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:96:19-64
+109        <activity
+109-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:97:9-99:57
+110            android:name="com.neo.neopayplus.card.NormalApduActivity"
+110-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:98:13-52
+111            android:windowSoftInputMode="stateHidden" />
+111-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:99:13-54
+112        <activity
+112-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:100:9-102:57
+113            android:name="com.neo.neopayplus.card.TransmitApduActivity"
+113-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:101:13-54
+114            android:windowSoftInputMode="stateHidden" />
+114-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:102:13-54
+115        <activity android:name="com.neo.neopayplus.card.ExtendedApduActivity" />
+115-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:103:9-63
+115-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:103:19-60
+116        <activity
+116-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:104:9-106:57
+117            android:name="com.neo.neopayplus.card.PassApduActivity"
+117-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:105:13-50
+118            android:windowSoftInputMode="stateHidden" />
+118-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:106:13-54
+119        <activity android:name="com.neo.neopayplus.card.MifarePlusActivity" />
+119-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:107:9-61
+119-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:107:19-58
+120        <activity android:name="com.neo.neopayplus.card.MifarePlusTransmitApduActivity" />
+120-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:108:9-73
+120-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:108:19-70
+121        <activity android:name="com.neo.neopayplus.card.MifareAuthedByPSAMActivity" />
+121-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:109:9-69
+121-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:109:19-66
+122        <activity android:name="com.neo.neopayplus.card.SLE4442_4428Actviity" />
+122-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:110:9-63
+122-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:110:19-60
+123        <activity android:name="com.neo.neopayplus.card.AT24CActivity" />
+123-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:111:9-56
+123-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:111:19-53
+124        <activity android:name="com.neo.neopayplus.card.AT88SCActivity" />
+124-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:112:9-57
+124-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:112:19-54
+125        <activity android:name="com.neo.neopayplus.card.CTX512Activity" />
+125-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:113:9-57
+125-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:113:19-54
+126        <activity android:name="com.neo.neopayplus.card.SRIActivity" />
+126-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:114:9-54
+126-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:114:19-51
+127        <activity android:name="com.neo.neopayplus.card.CtrCodeAndMultiApduActivity" />
+127-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:115:9-70
+127-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:115:19-67
+128        <activity android:name="com.neo.neopayplus.card.GetCardExistStatusActivity" />
+128-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:116:9-69
+128-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:116:19-66
+129        <activity android:name="com.neo.neopayplus.card.PingActivity" />
+129-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:117:9-55
+129-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:117:19-52
+130        <activity android:name="com.neo.neopayplus.card.InnovatronActivity" />
+130-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:118:9-61
+130-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:118:19-58
+131        <activity android:name="com.neo.neopayplus.security.SecurityActivity" />
+131-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:120:9-63
+131-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:120:19-60
+132        <activity android:name="com.neo.neopayplus.security.SaveKeyPlainTextActivity" />
+132-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:121:9-71
+132-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:121:19-68
+133        <activity android:name="com.neo.neopayplus.security.SaveKeyCipherTextActivity" />
+133-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:122:9-72
+133-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:122:19-69
+134        <activity android:name="com.neo.neopayplus.security.InjectPlainTextKeyActivity" />
+134-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:123:9-73
+134-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:123:19-70
+135        <activity android:name="com.neo.neopayplus.security.InjectCiphertextKeyActivity" />
+135-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:124:9-74
+135-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:124:19-71
+136        <activity android:name="com.neo.neopayplus.security.CalcMacActivity" />
+136-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:125:9-62
+136-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:125:19-59
+137        <activity android:name="com.neo.neopayplus.security.DataEncryptActivity" />
+137-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:126:9-66
+137-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:126:19-63
+138        <activity android:name="com.neo.neopayplus.security.DataDecryptActivity" />
+138-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:127:9-66
+138-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:127:19-63
+139        <activity android:name="com.neo.neopayplus.security.GetEncryptBySerialNumberActivity" />
+139-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:128:9-79
+139-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:128:19-76
+140        <activity android:name="com.neo.neopayplus.security.DukptSaveKeyActivity" />
+140-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:129:9-67
+140-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:129:19-64
+141        <activity android:name="com.neo.neopayplus.security.DukptCalcMacActivity" />
+141-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:130:9-67
+141-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:130:19-64
+142        <activity android:name="com.neo.neopayplus.security.DukptDataEncryptActivity" />
+142-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:131:9-71
+142-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:131:19-68
+143        <activity android:name="com.neo.neopayplus.security.DukptDataDecryptActivity" />
+143-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:132:9-71
+143-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:132:19-68
+144        <activity android:name="com.neo.neopayplus.security.DukptKSNOperateActivity" />
+144-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:133:9-70
+144-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:133:19-67
+145        <activity android:name="com.neo.neopayplus.security.RSATestActivity" />
+145-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:134:9-62
+145-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:134:19-59
+146        <activity android:name="com.neo.neopayplus.security.RSARecoverActivity" />
+146-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:135:9-65
+146-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:135:19-62
+147        <activity android:name="com.neo.neopayplus.security.SaveTR31KeyActivity" />
+147-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:136:9-66
+147-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:136:19-63
+148        <activity android:name="com.neo.neopayplus.security.DeleteKeyActivity" />
+148-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:137:9-64
+148-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:137:19-61
+149        <activity android:name="com.neo.neopayplus.security.DukptAesSaveKeyActivity" />
+149-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:138:9-70
+149-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:138:19-67
+150        <activity android:name="com.neo.neopayplus.security.SM2TestActivity" />
+150-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:139:9-62
+150-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:139:19-59
+151        <activity android:name="com.neo.neopayplus.security.CalcHashActivity" />
+151-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:140:9-63
+151-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:140:19-60
+152        <activity android:name="com.neo.neopayplus.security.HsmAndDeviceCertificateTestActivity" />
+152-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:141:9-82
+152-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:141:19-79
+153        <activity android:name="com.neo.neopayplus.security.DeviceCertPvkTestActivity" />
+153-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:142:9-72
+153-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:142:19-69
+154        <activity android:name="com.neo.neopayplus.security.InjectDeviceCertPvkActivity" />
+154-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:143:9-74
+154-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:143:19-71
+155        <activity android:name="com.neo.neopayplus.security.GetDeviceCertificateActivity" />
+155-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:144:9-75
+155-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:144:19-72
+156        <activity android:name="com.neo.neopayplus.security.DevicePvkRecoverActivity" />
+156-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:145:9-71
+156-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:145:19-68
+157        <activity android:name="com.neo.neopayplus.security.DeviceCertManagerActivity" />
+157-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:146:9-72
+157-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:146:19-69
+158        <activity android:name="com.neo.neopayplus.security.HsmKeyShareTestActivity" />
+158-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:147:9-70
+158-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:147:19-67
+159        <activity android:name="com.neo.neopayplus.security.HsmRsaTestActivity" />
+159-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:148:9-65
+159-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:148:19-62
+160        <activity android:name="com.neo.neopayplus.security.GetKeyCheckValueActivity" />
+160-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:149:9-71
+160-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:149:19-68
+161        <activity android:name="com.neo.neopayplus.security.APACSMacTestActivity" />
+161-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:150:9-67
+161-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:150:19-64
+162        <activity android:name="com.neo.neopayplus.security.HsmSaveKeyUnderKEKActivity" />
+162-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:151:9-73
+162-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:151:19-70
+163        <activity android:name="com.neo.neopayplus.security.HsmExportKeyUnderKEKActivity" />
+163-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:152:9-75
+163-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:152:19-72
+164        <activity android:name="com.neo.neopayplus.security.SaveKeyCipherTextUnderRsaActivity" />
+164-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:153:9-80
+164-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:153:19-77
+165        <activity android:name="com.neo.neopayplus.security.InjectCiphertextKeyUnderRsaActivity" />
+165-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:154:9-82
+165-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:154:19-79
+166        <activity android:name="com.neo.neopayplus.security.InjectSymKeyActivity" />
+166-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:155:9-67
+166-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:155:19-64
+167        <activity android:name="com.neo.neopayplus.security.GetSetDeviceCertificateActivity" />
+167-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:156:9-78
+167-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:156:19-75
+168        <activity android:name="com.neo.neopayplus.security.TR34TestActivity" />
+168-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:157:9-63
+168-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:157:19-60
+169        <activity android:name="com.neo.neopayplus.pin.PinActivity" />
+169-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:159:9-53
+169-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:159:19-50
+170        <activity android:name="com.neo.neopayplus.pin.PinPadActivity" />
+170-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:160:9-56
+170-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:160:19-53
+171        <activity android:name="com.neo.neopayplus.pin.CustomizedPinPadActivity" />
+171-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:161:9-66
+171-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:161:19-63
+172        <activity android:name="com.neo.neopayplus.pin.CustomizedPinPadActivityForBanjul" />
+172-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:162:9-75
+172-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:162:19-72
+173        <activity android:name="com.neo.neopayplus.pin.VisualImpairmentPinActivity" />
+173-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:163:9-69
+173-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:163:19-66
+174        <activity android:name="com.neo.neopayplus.pin.CustomizedVisualImpairmentPinActivity" />
+174-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:164:9-79
+174-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:164:19-76
+175        <activity android:name="com.neo.neopayplus.pin.StartInputPinActivity" />
+175-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:165:9-63
+175-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:165:19-60
+176        <activity android:name="com.neo.neopayplus.emv.EMVActivity" />
+176-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:167:9-53
+176-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:167:19-50
+177        <activity android:name="com.neo.neopayplus.amount.AmountInputActivity" />
+177-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:168:9-64
+177-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:168:19-61
+178        <activity android:name="com.neo.neopayplus.pin.PinInputActivity" />
+178-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:169:9-58
+178-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:169:19-55
+179        <activity android:name="com.neo.neopayplus.processing.ProcessingActivity" />
+179-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:170:9-67
+179-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:170:19-64
+180        <activity android:name="com.neo.neopayplus.data.DataViewActivity" />
+180-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:171:9-59
+180-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:171:19-56
+181        <activity android:name="com.neo.neopayplus.payment.PaymentActivity" />
+181-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:172:9-61
+181-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:172:19-58
+182        <activity android:name="com.neo.neopayplus.settlement.SettlementActivity" />
+182-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:173:9-67
+182-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:173:19-64
+183        <activity android:name="com.neo.neopayplus.transactions.TransactionHistoryActivity" />
+183-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:174:9-77
+183-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:174:19-74
+184        <activity android:name="com.neo.neopayplus.debug.DebugActivity" />
+184-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:175:9-57
+184-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:175:19-54
+185        <activity android:name="com.neo.neopayplus.emv.MagProcessActivity" />
+185-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:176:9-60
+185-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:176:19-57
+186        <activity android:name="com.neo.neopayplus.emv.VisualImpairmentProcessActivity" />
+186-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:177:9-73
+186-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:177:19-70
+187        <activity android:name="com.neo.neopayplus.emv.RuPayCardActivity" />
+187-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:178:9-59
+187-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:178:19-56
+188        <activity android:name="com.neo.neopayplus.emv.TossEmvActivity" />
+188-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:179:9-57
+188-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:179:19-54
+189        <activity android:name="com.neo.neopayplus.emv.SredActivity" />
+189-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:180:9-54
+189-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:180:19-51
+190        <activity android:name="com.neo.neopayplus.emv.EmvOtherActivity" />
+190-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:181:9-58
+190-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:181:19-55
+191        <activity android:name="com.neo.neopayplus.emv.EMVTestSaveAidCapkActivity" />
+191-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:182:9-68
+191-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:182:19-65
+192        <activity android:name="com.neo.neopayplus.tax.TaxTestActivity" />
+192-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:184:9-57
+192-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:184:19-54
+193        <activity android:name="com.neo.neopayplus.print.PrintActivity" />
+193-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:186:9-57
+193-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:186:19-54
+194        <activity android:name="com.neo.neopayplus.print.PrintTextActivity" />
+194-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:187:9-61
+194-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:187:19-58
+195        <activity android:name="com.neo.neopayplus.print.PrintConfigActivity" />
+195-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:188:9-63
+195-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:188:19-60
+196        <activity android:name="com.neo.neopayplus.print.PrintBitmapActivity" />
+196-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:189:9-63
+196-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:189:19-60
+197        <activity android:name="com.neo.neopayplus.etc.ETCActivity" />
+197-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:191:9-53
+197-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:191:19-50
+198        <activity
+198-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:192:9-194:57
+199            android:name="com.neo.neopayplus.etc.I2CDataExchangeActivity"
+199-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:193:13-56
+200            android:windowSoftInputMode="stateHidden" />
+200-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:194:13-54
+201        <activity
+201-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:195:9-197:57
+202            android:name="com.neo.neopayplus.etc.SearchETCDeviceActivity"
+202-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:196:13-56
+203            android:windowSoftInputMode="stateHidden" />
+203-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:197:13-54
+204        <activity
+204-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:198:9-200:57
+205            android:name="com.neo.neopayplus.etc.ETCStressTestActivity"
+205-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:199:13-54
+206            android:windowSoftInputMode="stateHidden" />
+206-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:200:13-54
+207        <activity
+207-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:201:9-203:57
+208            android:name="com.neo.neopayplus.etc.ETCTradeActivity"
+208-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:202:13-49
+209            android:windowSoftInputMode="stateHidden" />
+209-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:203:13-54
+210        <activity android:name="com.neo.neopayplus.m112.M112Activity" />
+210-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:205:9-55
+210-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:205:19-52
+211        <activity android:name="com.neo.neopayplus.other.OtherActivity" />
+211-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:207:9-57
+211-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:207:19-54
+212        <activity android:name="com.neo.neopayplus.other.VersionActivity" />
+212-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:208:9-59
+212-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:208:19-56
+213        <activity android:name="com.neo.neopayplus.other.LanguageActivity" />
+213-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:209:9-60
+213-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:209:19-57
+214        <activity android:name="com.neo.neopayplus.other.TamperLogActivity" />
+214-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:210:9-61
+214-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:210:19-58
+215        <activity android:name="com.neo.neopayplus.other.MultiThreadTestActivity" />
+215-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:211:9-67
+215-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:211:19-64
+216        <activity android:name="com.neo.neopayplus.other.ESignatureActivity" />
+216-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:212:9-62
+216-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:212:19-59
+217        <activity android:name="com.neo.neopayplus.other.ScreenActivity" />
+217-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:213:9-58
+217-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:213:19-55
+218        <activity android:name="com.neo.neopayplus.other.GB2312Activity" />
+218-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:214:9-58
+218-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:214:19-55
+219        <activity android:name="com.neo.neopayplus.other.SetTimeDateActivity" />
+219-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:215:9-63
+219-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:215:19-60
+220        <activity android:name="com.neo.neopayplus.other.SettingActivity" />
+220-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:216:9-59
+220-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:216:19-56
+221        <activity android:name="com.neo.neopayplus.other.DeviceCommActivity" />
+221-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:217:9-62
+221-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:217:19-59
+222        <activity android:name="com.neo.neopayplus.other.PCDParamActivity" />
+222-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:218:9-60
+222-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:218:19-57
+223        <activity android:name="com.neo.neopayplus.other.CardPollIntervalTimeActivity" />
+223-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:219:9-72
+223-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:219:19-69
+224        <activity android:name="com.neo.neopayplus.other.MagCardRoundPollTimesActivity" />
+224-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:220:9-73
+224-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:220:19-70
+225        <activity android:name="com.neo.neopayplus.scan.ScanActivity" />
+225-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:222:9-55
+225-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:222:19-52
+226        <activity android:name="com.neo.neopayplus.scan.ScanResultActivity" />
+226-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:223:9-61
+226-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:223:19-58
+227        <activity android:name="com.neo.neopayplus.scan.BarcodeActivity" />
+227-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:224:9-58
+227-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:224:19-55
+228        <activity android:name="com.neo.neopayplus.hce.HCEActivity" />
+228-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:226:9-53
+228-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:226:19-50
+229        <activity android:name="com.neo.neopayplus.hce.HCETestActivity" />
+229-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:227:9-57
+229-->/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/src/main/AndroidManifest.xml:227:19-54
+230
+231        <provider
+231-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+232            android:name="androidx.startup.InitializationProvider"
+232-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+233            android:authorities="com.neo.neopayplus.androidx-startup"
+233-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+234            android:exported="false" >
+234-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+235            <meta-data
+235-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+236                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+236-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+237                android:value="androidx.startup" />
+237-->[androidx.emoji2:emoji2:1.2.0] /Users/fady/.gradle/caches/transforms-3/9f99c19470d8bf18ee15270d078c3173/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+238            <meta-data
+238-->[androidx.lifecycle:lifecycle-process:2.4.1] /Users/fady/.gradle/caches/transforms-3/a68586d9ac6fc4872d4884a947d1c1d5/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
+239                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+239-->[androidx.lifecycle:lifecycle-process:2.4.1] /Users/fady/.gradle/caches/transforms-3/a68586d9ac6fc4872d4884a947d1c1d5/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
+240                android:value="androidx.startup" />
+240-->[androidx.lifecycle:lifecycle-process:2.4.1] /Users/fady/.gradle/caches/transforms-3/a68586d9ac6fc4872d4884a947d1c1d5/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
+241        </provider>
+242    </application>
+243
+244</manifest>

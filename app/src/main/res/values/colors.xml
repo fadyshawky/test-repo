@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Primary Colors -->
+    <color name="colorPrimary">#8481FD</color>
+    <color name="colorPrimaryDark">#3331B8</color>
+    <color name="colorAccent">#52BDFF</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="colorOrange">#F2565E</color>
+    <color name="transparent">#00000000</color>
+
+    <color name="colorBackground">#FAFAFA</color>
+    <color name="colorTextTitle">#262626</color>
+    <color name="colorTextContent">#929292</color>
+    <color name="colorTextHelp">#929292</color>
+    <color name="colorLineColor">#E0E0E0</color>
+    <color name="FD5A52">#F2565E</color>
+    <color name="CE6E6E6">#E0E0E0</color>
+
+    <color name="FF3C00">#F2565E</color>
+    <color name="C999999">#929292</color>
+    <color name="black">#000000</color>
+    <color name="gray">#929292</color>
+    
+    <!-- Violet Colors -->
+    <color name="violetLight">#F3F2FF</color>
+    <color name="violetLightHover">#E6E6FF</color>
+    <color name="violetLightActive">#C1C0FE</color>
+    <color name="violetNormal">#8481FD</color>
+    <color name="violetNormalHover">#5250D9</color>
+    <color name="violetNormalActive">#3331B8</color>
+    <color name="violetDark">#262626</color>
+    <color name="violetDarker">#000033</color>
+    
+    <!-- Blue Colors -->
+    <color name="blueLight">#F6FCFF</color>
+    <color name="blueLightHover">#E9F8FF</color>
+    <color name="blueLightActive">#C1E5FF</color>
+    <color name="blueNormal">#52BDFF</color>
+    <color name="blueNormalHover">#3399D9</color>
+    <color name="blueNormalActive">#1A7DB3</color>
+    
+    <!-- Grey Colors -->
+    <color name="greyLight">#F9FCFF</color>
+    <color name="greyLightHover">#E0E0E0</color>
+    <color name="greyLightActive">#BDBDBD</color>
+    <color name="greyNormal">#929292</color>
+    <color name="greyNormalHover">#666666</color>
+    <color name="greyNormalActive">#4D4D4D</color>
+    <color name="greyDarker">#262626</color>
+    
+    <!-- Status Colors -->
+    <color name="red">#F2565E</color>
+    <color name="green">#4CAF50</color>
+    <color name="orange">#F2565E</color>
+    
+    <!-- Surface Colors -->
+    <color name="surface">#FFFFFF</color>
+    <color name="card">#FFFFFF</color>
+    <color name="textPrimary">#262626</color>
+    <color name="textSecondary">#929292</color>
+
+</resources>

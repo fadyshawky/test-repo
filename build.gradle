@@ -1,0 +1,36 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://s01.oss.sonatype.org/content/repositories/snapshots" }
+        maven { url "https://s01.oss.sonatype.org/content/groups/public/" }
+        maven { url "https://jcenter.bintray.com" }
+        maven { url "https://repo1.maven.org/maven2/" }
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.2.2'
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://s01.oss.sonatype.org/content/repositories/snapshots" }
+        maven { url "https://s01.oss.sonatype.org/content/groups/public/" }
+        maven { url "https://jcenter.bintray.com" }
+        maven { url "https://repo1.maven.org/maven2/" }
+        // Sunmi repositories
+        maven { url "https://maven.sunmi.com/repository/public/" }
+        maven { url "https://maven.sunmi.com/repository/snapshots/" }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

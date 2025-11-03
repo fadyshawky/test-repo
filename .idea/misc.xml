@@ -1,0 +1,88 @@
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_basic_buzzer.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_basic_cpu_info.xml" value="0.3242753623188406" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_basic_schedule_reboot.xml" value="0.3242753623188406" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_basic_screen_model.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_basic_set_sys_param.xml" value="0.3242753623188406" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_basic_sys_set_wakeup.xml" value="0.3242753623188406" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_at24c.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_ctx512.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_felica.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_ic.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_m1.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_mag.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_mag_encrypt_pan.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_mag_preset_track.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_nfc.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_poll_interval_time.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_sam.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_card_sri_4k.xml" value="0.33" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_cardactive_and_data_ex_ctrcode_test_layout.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_device_cert_test.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_device_certificate.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_device_manage.xml" value="0.33" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_device_pvk_recover.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_e_signature.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_etc_search_layout.xml" value="0.30117753623188404" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_etc_stress_test_layout.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_get_device_certificate.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_hsm_export_key_under_kek.xml" value="0.33" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_hsm_key_share_test.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_hsm_rsa_test.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_hsm_sake_key_under_kek.xml" value="0.32897286821705424" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_hsm_save_key_under_kek.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_inject_ciphertext_key_under_rsa.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_kb_beep_mode.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_lavego.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_liteso.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_lmk_package.xml" value="0.3242753623188406" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_m112_layout.xml" value="0.30117753623188404" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_main.xml" value="0.31023550724637683" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_network_manage.xml" value="0.33" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_normal_apdu_layout.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_other_pcd_param.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_pass_apdu_layout.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_ped.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_phone_manage.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_pin_antiexhaustive_mode.xml" value="0.3242753623188406" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_pin_pad.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_pin_pad_custom.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_print.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_rsa_recover.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_rsa_test.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_rupaycard_layout.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_savekey_ciphertext_under_rsa.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_apacs_mac.xml" value="0.33" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_calc_hash.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_calc_mac.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_data_decrypt.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_data_encrypt.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_delete_key.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_dukpt_calc_mac.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_get_kcv.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_save_key_cipher_text.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_security_save_key_plain_text.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_setting.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_transmission_stress_test.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_transmit_apdu_layout.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/activity_transmit_apdu_multi_sam.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/common_item.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/dialog_loading.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/dialog_nfc_hint.xml" value="0.3494791666666667" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/layout/view_fix_password_keyboard.xml" value="0.3536458333333333" />
+        <entry key="..\:/Project/SunmiPaySdkTestDemo/SunmiPaySdkTestDemo/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml" value="0.1875" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="11" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+</project>

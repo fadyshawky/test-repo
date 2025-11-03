@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.neo.neopayplus"
+    android:versionCode="1"
+    android:versionName="v1.0.0" >
+
+    <uses-sdk
+        android:minSdkVersion="22"
+        android:targetSdkVersion="33" />
+
+    <!-- Network permission (required for API calls) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Sunmi PayLib permissions -->
+    <uses-permission android:name="com.sunmi.perm.LED" />
+    <uses-permission android:name="com.sunmi.perm.MSR" />
+    <uses-permission android:name="com.sunmi.perm.ICC" />
+    <uses-permission android:name="com.sunmi.perm.PINPAD" />
+    <uses-permission android:name="com.sunmi.perm.SECURITY" />
+    <uses-permission android:name="com.sunmi.perm.CONTACTLESS_CARD" />
+
+    <!-- Android system permissions -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.SET_TIME" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <queries>
+        <package android:name="com.sunmi.pay.hardware_v3" />
+    </queries>
+
+    <permission
+        android:name="com.neo.neopayplus.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="com.neo.neopayplus.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+
+    <application
+        android:name="com.neo.neopayplus.MyApplication"
+        android:allowBackup="true"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        android:debuggable="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:testOnly="true"
+        android:theme="@style/AppTheme" >
+        <activity
+            android:name="com.neo.neopayplus.MainActivity"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name="com.neo.neopayplus.basic.LedActivity" />
+        <activity android:name="com.neo.neopayplus.basic.LedAdditionalActivity" />
+        <activity android:name="com.neo.neopayplus.basic.BasicActivity" />
+        <activity android:name="com.neo.neopayplus.basic.BuzzerActivity" />
+        <activity android:name="com.neo.neopayplus.basic.GetSysParamActivity" />
+        <activity android:name="com.neo.neopayplus.basic.SetSysParamActivity" />
+        <activity android:name="com.neo.neopayplus.basic.ScreenModelActivity" />
+        <activity android:name="com.neo.neopayplus.basic.DynamicPermissionAndWifiProxyActivity" />
+        <activity android:name="com.neo.neopayplus.basic.CACertManageActivity" />
+        <activity android:name="com.neo.neopayplus.basic.CPUInfoActivity" />
+        <activity android:name="com.neo.neopayplus.basic.ScheduleRebootActivity" />
+        <activity android:name="com.neo.neopayplus.basic.CustomizeFunctionKeyActivity" />
+        <activity android:name="com.neo.neopayplus.basic.LowMemoryKillerActivity" />
+        <activity android:name="com.neo.neopayplus.basic.PinAntiExhaustiveMode" />
+        <activity android:name="com.neo.neopayplus.basic.EMVCallbackTimeActivity" />
+        <activity android:name="com.neo.neopayplus.basic.SysSetWakeupActivity" />
+        <activity android:name="com.neo.neopayplus.basic.KBBeepModeActivity" />
+        <activity android:name="com.neo.neopayplus.basic.TransmissionTestActivity" />
+        <activity android:name="com.neo.neopayplus.basic.SharedLibActivity" />
+        <activity android:name="com.neo.neopayplus.basic.LitesoActivity" />
+        <activity android:name="com.neo.neopayplus.basic.NetworkManageActivity" />
+        <activity android:name="com.neo.neopayplus.basic.PhoneManageActivity" />
+        <activity android:name="com.neo.neopayplus.basic.DeviceManageActivity" />
+        <activity android:name="com.neo.neopayplus.basic.PedActivity" />
+        <activity android:name="com.neo.neopayplus.basic.RTCBatterVolActivity" />
+        <activity android:name="com.neo.neopayplus.basic.GetTamperLogActivity" />
+        <activity android:name="com.neo.neopayplus.biometric.BiometricActivity" />
+        <activity android:name="com.neo.neopayplus.card.CardActivity" />
+        <activity android:name="com.neo.neopayplus.card.MagActivity" />
+        <activity android:name="com.neo.neopayplus.card.MagPresetTrackActivity" />
+        <activity android:name="com.neo.neopayplus.card.MagEncActivity" />
+        <activity android:name="com.neo.neopayplus.card.MagTrack2EncActivity" />
+        <activity android:name="com.neo.neopayplus.card.ICActivity" />
+        <activity android:name="com.neo.neopayplus.card.NFCActivity" />
+        <activity android:name="com.neo.neopayplus.card.CompositeActivity" />
+        <activity android:name="com.neo.neopayplus.card.M1Activity" />
+        <activity
+            android:name="com.neo.neopayplus.card.SAMActivity"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
+            android:name="com.neo.neopayplus.card.SAMMultiActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity android:name="com.neo.neopayplus.card.FelicaActivity" />
+        <activity android:name="com.neo.neopayplus.card.MifareUltralightCActivity" />
+        <activity android:name="com.neo.neopayplus.card.MifareUtralightEv1Activity" />
+        <activity android:name="com.neo.neopayplus.card.MifareDesfireEv2Activity" />
+        <activity
+            android:name="com.neo.neopayplus.card.NormalApduActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
+            android:name="com.neo.neopayplus.card.TransmitApduActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity android:name="com.neo.neopayplus.card.ExtendedApduActivity" />
+        <activity
+            android:name="com.neo.neopayplus.card.PassApduActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity android:name="com.neo.neopayplus.card.MifarePlusActivity" />
+        <activity android:name="com.neo.neopayplus.card.MifarePlusTransmitApduActivity" />
+        <activity android:name="com.neo.neopayplus.card.MifareAuthedByPSAMActivity" />
+        <activity android:name="com.neo.neopayplus.card.SLE4442_4428Actviity" />
+        <activity android:name="com.neo.neopayplus.card.AT24CActivity" />
+        <activity android:name="com.neo.neopayplus.card.AT88SCActivity" />
+        <activity android:name="com.neo.neopayplus.card.CTX512Activity" />
+        <activity android:name="com.neo.neopayplus.card.SRIActivity" />
+        <activity android:name="com.neo.neopayplus.card.CtrCodeAndMultiApduActivity" />
+        <activity android:name="com.neo.neopayplus.card.GetCardExistStatusActivity" />
+        <activity android:name="com.neo.neopayplus.card.PingActivity" />
+        <activity android:name="com.neo.neopayplus.card.InnovatronActivity" />
+        <activity android:name="com.neo.neopayplus.security.SecurityActivity" />
+        <activity android:name="com.neo.neopayplus.security.SaveKeyPlainTextActivity" />
+        <activity android:name="com.neo.neopayplus.security.SaveKeyCipherTextActivity" />
+        <activity android:name="com.neo.neopayplus.security.InjectPlainTextKeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.InjectCiphertextKeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.CalcMacActivity" />
+        <activity android:name="com.neo.neopayplus.security.DataEncryptActivity" />
+        <activity android:name="com.neo.neopayplus.security.DataDecryptActivity" />
+        <activity android:name="com.neo.neopayplus.security.GetEncryptBySerialNumberActivity" />
+        <activity android:name="com.neo.neopayplus.security.DukptSaveKeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.DukptCalcMacActivity" />
+        <activity android:name="com.neo.neopayplus.security.DukptDataEncryptActivity" />
+        <activity android:name="com.neo.neopayplus.security.DukptDataDecryptActivity" />
+        <activity android:name="com.neo.neopayplus.security.DukptKSNOperateActivity" />
+        <activity android:name="com.neo.neopayplus.security.RSATestActivity" />
+        <activity android:name="com.neo.neopayplus.security.RSARecoverActivity" />
+        <activity android:name="com.neo.neopayplus.security.SaveTR31KeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.DeleteKeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.DukptAesSaveKeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.SM2TestActivity" />
+        <activity android:name="com.neo.neopayplus.security.CalcHashActivity" />
+        <activity android:name="com.neo.neopayplus.security.HsmAndDeviceCertificateTestActivity" />
+        <activity android:name="com.neo.neopayplus.security.DeviceCertPvkTestActivity" />
+        <activity android:name="com.neo.neopayplus.security.InjectDeviceCertPvkActivity" />
+        <activity android:name="com.neo.neopayplus.security.GetDeviceCertificateActivity" />
+        <activity android:name="com.neo.neopayplus.security.DevicePvkRecoverActivity" />
+        <activity android:name="com.neo.neopayplus.security.DeviceCertManagerActivity" />
+        <activity android:name="com.neo.neopayplus.security.HsmKeyShareTestActivity" />
+        <activity android:name="com.neo.neopayplus.security.HsmRsaTestActivity" />
+        <activity android:name="com.neo.neopayplus.security.GetKeyCheckValueActivity" />
+        <activity android:name="com.neo.neopayplus.security.APACSMacTestActivity" />
+        <activity android:name="com.neo.neopayplus.security.HsmSaveKeyUnderKEKActivity" />
+        <activity android:name="com.neo.neopayplus.security.HsmExportKeyUnderKEKActivity" />
+        <activity android:name="com.neo.neopayplus.security.SaveKeyCipherTextUnderRsaActivity" />
+        <activity android:name="com.neo.neopayplus.security.InjectCiphertextKeyUnderRsaActivity" />
+        <activity android:name="com.neo.neopayplus.security.InjectSymKeyActivity" />
+        <activity android:name="com.neo.neopayplus.security.GetSetDeviceCertificateActivity" />
+        <activity android:name="com.neo.neopayplus.security.TR34TestActivity" />
+        <activity android:name="com.neo.neopayplus.pin.PinActivity" />
+        <activity android:name="com.neo.neopayplus.pin.PinPadActivity" />
+        <activity android:name="com.neo.neopayplus.pin.CustomizedPinPadActivity" />
+        <activity android:name="com.neo.neopayplus.pin.CustomizedPinPadActivityForBanjul" />
+        <activity android:name="com.neo.neopayplus.pin.VisualImpairmentPinActivity" />
+        <activity android:name="com.neo.neopayplus.pin.CustomizedVisualImpairmentPinActivity" />
+        <activity android:name="com.neo.neopayplus.pin.StartInputPinActivity" />
+        <activity android:name="com.neo.neopayplus.emv.EMVActivity" />
+        <activity android:name="com.neo.neopayplus.amount.AmountInputActivity" />
+        <activity android:name="com.neo.neopayplus.pin.PinInputActivity" />
+        <activity android:name="com.neo.neopayplus.processing.ProcessingActivity" />
+        <activity android:name="com.neo.neopayplus.data.DataViewActivity" />
+        <activity android:name="com.neo.neopayplus.payment.PaymentActivity" />
+        <activity android:name="com.neo.neopayplus.settlement.SettlementActivity" />
+        <activity android:name="com.neo.neopayplus.transactions.TransactionHistoryActivity" />
+        <activity android:name="com.neo.neopayplus.debug.DebugActivity" />
+        <activity android:name="com.neo.neopayplus.emv.MagProcessActivity" />
+        <activity android:name="com.neo.neopayplus.emv.VisualImpairmentProcessActivity" />
+        <activity android:name="com.neo.neopayplus.emv.RuPayCardActivity" />
+        <activity android:name="com.neo.neopayplus.emv.TossEmvActivity" />
+        <activity android:name="com.neo.neopayplus.emv.SredActivity" />
+        <activity android:name="com.neo.neopayplus.emv.EmvOtherActivity" />
+        <activity android:name="com.neo.neopayplus.emv.EMVTestSaveAidCapkActivity" />
+        <activity android:name="com.neo.neopayplus.tax.TaxTestActivity" />
+        <activity android:name="com.neo.neopayplus.print.PrintActivity" />
+        <activity android:name="com.neo.neopayplus.print.PrintTextActivity" />
+        <activity android:name="com.neo.neopayplus.print.PrintConfigActivity" />
+        <activity android:name="com.neo.neopayplus.print.PrintBitmapActivity" />
+        <activity android:name="com.neo.neopayplus.etc.ETCActivity" />
+        <activity
+            android:name="com.neo.neopayplus.etc.I2CDataExchangeActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
+            android:name="com.neo.neopayplus.etc.SearchETCDeviceActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
+            android:name="com.neo.neopayplus.etc.ETCStressTestActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
+            android:name="com.neo.neopayplus.etc.ETCTradeActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity android:name="com.neo.neopayplus.m112.M112Activity" />
+        <activity android:name="com.neo.neopayplus.other.OtherActivity" />
+        <activity android:name="com.neo.neopayplus.other.VersionActivity" />
+        <activity android:name="com.neo.neopayplus.other.LanguageActivity" />
+        <activity android:name="com.neo.neopayplus.other.TamperLogActivity" />
+        <activity android:name="com.neo.neopayplus.other.MultiThreadTestActivity" />
+        <activity android:name="com.neo.neopayplus.other.ESignatureActivity" />
+        <activity android:name="com.neo.neopayplus.other.ScreenActivity" />
+        <activity android:name="com.neo.neopayplus.other.GB2312Activity" />
+        <activity android:name="com.neo.neopayplus.other.SetTimeDateActivity" />
+        <activity android:name="com.neo.neopayplus.other.SettingActivity" />
+        <activity android:name="com.neo.neopayplus.other.DeviceCommActivity" />
+        <activity android:name="com.neo.neopayplus.other.PCDParamActivity" />
+        <activity android:name="com.neo.neopayplus.other.CardPollIntervalTimeActivity" />
+        <activity android:name="com.neo.neopayplus.other.MagCardRoundPollTimesActivity" />
+        <activity android:name="com.neo.neopayplus.scan.ScanActivity" />
+        <activity android:name="com.neo.neopayplus.scan.ScanResultActivity" />
+        <activity android:name="com.neo.neopayplus.scan.BarcodeActivity" />
+        <activity android:name="com.neo.neopayplus.hce.HCEActivity" />
+        <activity android:name="com.neo.neopayplus.hce.HCETestActivity" />
+
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="com.neo.neopayplus.androidx-startup"
+            android:exported="false" >
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup" />
+        </provider>
+    </application>
+
+</manifest>

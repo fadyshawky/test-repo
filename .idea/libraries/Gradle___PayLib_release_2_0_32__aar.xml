@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: :PayLib-release-2.0.32:@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-3/0e0399af8bc715a7a4a651c682c93ffe/transformed/PayLib-release-2.0.32/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-3/0e0399af8bc715a7a4a651c682c93ffe/transformed/PayLib-release-2.0.32/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-3/0e0399af8bc715a7a4a651c682c93ffe/transformed/PayLib-release-2.0.32/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

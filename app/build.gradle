@@ -1,0 +1,92 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdk 33
+    ndkVersion "21.0.6113669"
+    lintOptions {
+        abortOnError false
+        disable 'GoogleAppIndexingWarning'
+        disable 'NonConstantResourceId'
+    }
+
+    defaultConfig {
+        applicationId "com.neo.neopayplus"
+        minSdkVersion 22
+        targetSdkVersion 33
+        versionCode 1
+        versionName "v1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            keyAlias 'sunmi'
+            keyPassword 'SunmiPay'
+            storeFile file('sunmi.jks')
+            storePassword 'sunmipay'
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        release {
+            debuggable true
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    android.applicationVariants.all { variant ->
+        def defOutputDir = variant.getPackageApplicationProvider().get().outputDirectory.getAsFile().get().getPath()
+        def targetDir = "${project.buildDir}/outputs/apk"
+        variant.outputs.all {
+            outputFileName = "NeoPay_${versionName}_${buildType.name}.apk"
+//            variant.assembleProvider.get().doLast {
+//                copy {
+//                    from defOutputDir
+//                    into targetDir
+//                    include "**/*.apk"
+//                }
+//                File dir = file("${targetDir}/${buildType.name}")
+//                delete dir
+//            }
+        }
+    }
+}
+
+repositories {
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    // PayLib v2.0.32 - Updated for better Apple Pay support and security
+    implementation(name: 'PayLib-release-2.0.32', ext: 'aar')
+    
+    // Keep other dependencies
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'com.sunmi:printerlibrary:1.0.15'
+    implementation 'org.bouncycastle:bcpkix-jdk15on:1.70'
+    
+    // Additional dependencies for PayLib v2.0.32
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    implementation "com.google.code.gson:gson:2.10.1"
+}
