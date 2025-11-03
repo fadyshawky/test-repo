@@ -57,8 +57,8 @@ public class MainActivity extends BaseAppCompatActivity {
                 openActivity(SettlementActivity.class);
                 break;
             case R.id.btnReverse:
-                // Navigate to PayActivity in reversal mode
-                Intent reversalIntent = new Intent(this, com.neo.neopayplus.payment.PaymentActivity.class);
+                // Navigate to ProcessingActivity in reversal mode (uses clean architecture)
+                Intent reversalIntent = new Intent(this, com.neo.neopayplus.processing.ProcessingActivity.class);
                 reversalIntent.putExtra("mode", "reversal");
                 startActivity(reversalIntent);
                 break;

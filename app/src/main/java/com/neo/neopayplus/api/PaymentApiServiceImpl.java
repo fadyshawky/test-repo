@@ -1116,8 +1116,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
             httpClient.newCall(httpRequest).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    LogUtil.e(TAG, "❌ Production reversal API error: " + e.getMessage());
-                    e.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Production reversal API", e);
                     mainHandler.post(() -> callback.onReversalError(e));
                 }
                 
@@ -1147,8 +1146,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 }
             });
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error building production reversal API request: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Building production reversal API request", e);
             mainHandler.post(() -> callback.onReversalError(e));
         }
     }
@@ -1220,8 +1218,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 return ReversalResponse.declined(responseCode, responseMessage);
             }
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error parsing reversal response: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Parsing reversal response", e);
             return ReversalResponse.error(e, "Failed to parse response: " + e.getMessage());
         }
     }
@@ -1305,8 +1302,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
             httpClient.newCall(httpRequest).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    LogUtil.e(TAG, "❌ Production key announcement API error: " + e.getMessage());
-                    e.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Production key announcement API", e);
                     mainHandler.post(() -> callback.onKeyAnnounceError(e));
                 }
                 
@@ -1336,8 +1332,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 }
             });
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error building production key announcement API request: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Building production key announcement API request", e);
             mainHandler.post(() -> callback.onKeyAnnounceError(e));
         }
     }
@@ -1379,8 +1374,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 return KeyAnnounceResponse.error(new Exception(message), message);
             }
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error parsing key announcement response: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Parsing key announcement response", e);
             return KeyAnnounceResponse.error(e, "Failed to parse response: " + e.getMessage());
         }
     }

@@ -57,10 +57,12 @@ public class SettlementApiFactory {
                 
             case PRODUCTION:
                 LogUtil.e(TAG, "Creating Settlement API Service (PRODUCTION mode)");
-                // Configured server at 192.168.100.176:8080
-                // Base URL includes /v1 prefix as per API documentation
-                String apiBaseUrl = "http://192.168.100.176:8080/v1";
-                String apiKey = "test-token"; // Default test token - replace with actual auth token if needed
+                // API key and base URL loaded from buildConfigField (secure storage)
+                // Set via environment variables or build.gradle for production builds
+                String apiBaseUrl = com.neo.neopayplus.BuildConfig.API_BASE_URL;
+                String apiKey = com.neo.neopayplus.BuildConfig.API_KEY;
+                LogUtil.e(TAG, "Using API Base URL: " + (apiBaseUrl != null && !apiBaseUrl.isEmpty() ? apiBaseUrl : "NOT CONFIGURED"));
+                LogUtil.e(TAG, "Using API Key: " + (apiKey != null && !apiKey.isEmpty() ? "***CONFIGURED***" : "NOT CONFIGURED"));
                 return new SettlementApiServiceImpl(apiBaseUrl, apiKey);
                 
             default:

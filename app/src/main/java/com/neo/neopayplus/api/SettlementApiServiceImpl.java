@@ -144,8 +144,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
             httpClient.newCall(httpRequest).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    LogUtil.e(TAG, "❌ Settlement batch upload failed: " + e.getMessage());
-                    e.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Settlement batch upload", e);
                     mainHandler.post(() -> callback.onBatchUploadError(e));
                 }
                 
@@ -173,8 +172,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
             });
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error building settlement batch upload request: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Building settlement batch upload request", e);
             mainHandler.post(() -> callback.onBatchUploadError(e));
         }
     }
@@ -259,8 +257,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
             }
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error parsing settlement batch upload response: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Parsing settlement batch upload response", e);
             return BatchUploadResponse.error(e, "Failed to parse response: " + e.getMessage());
         }
     }

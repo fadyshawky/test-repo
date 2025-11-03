@@ -15,7 +15,6 @@ import com.neo.neopayplus.BaseAppCompatActivity;
 import com.neo.neopayplus.Constant;
 import com.neo.neopayplus.R;
 import com.neo.neopayplus.data.TransactionJournal;
-import com.neo.neopayplus.payment.PaymentActivity;
 import com.neo.neopayplus.utils.LogUtil;
 
 import java.text.SimpleDateFormat;

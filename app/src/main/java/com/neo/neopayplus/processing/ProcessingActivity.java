@@ -39,6 +39,11 @@ import com.neo.neopayplus.db.TxnDb;
 import com.neo.neopayplus.utils.EntryModeUtil;
 import com.neo.neopayplus.utils.TimeSync;
 import com.neo.neopayplus.security.KeyManagerPOS;
+import com.neo.neopayplus.processing.CvmHandler;
+import com.neo.neopayplus.processing.di.TransactionDependencyProvider;
+import com.neo.neopayplus.processing.usecase.ProcessEmvTransactionUseCase;
+import com.neo.neopayplus.processing.usecase.PinEntryUseCase;
+import com.neo.neopayplus.api.PaymentApiService;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -121,10 +126,9 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
     private static final int REQ_PIN_INPUT = 1001;
     
     // PIN handling state (per CVM & PIN pad handling guide)
-    private static final int MAX_PIN_ATTEMPTS = 3;
     private static final int PIN_ENTRY_TIMEOUT_MS = 60_000; // 60 seconds
     private static final boolean ALLOW_PIN_FALLBACK_TO_SIGNATURE = true;
-    private java.util.concurrent.atomic.AtomicInteger mPinAttemptsLeft = new java.util.concurrent.atomic.AtomicInteger(MAX_PIN_ATTEMPTS);
+    // Note: PIN attempts management moved to PinEntryUseCase
     private byte[] mOnlinePinBlock = null; // Store PIN block for online PIN
     private String mKsn = null; // Store KSN for online PIN
     private int mCurrentPinType = -1; // 0=offline, 1=online
@@ -142,13 +146,42 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
     private String currentAid = null;
     private String currentTsi = null;
     private String currentTvr = null;
+    
+    // New architecture components (Clean Architecture)
+    private CvmHandler cvmHandler;
+    private ProcessEmvTransactionUseCase transactionUseCase;
+    private PinEntryUseCase pinEntryUseCase;
+    private TransactionDependencyProvider dependencyProvider;
+    private com.neo.neopayplus.processing.repository.TransactionRepository transactionRepository;
+    
+    // Reversal mode
+    private boolean isReversalMode = false;
+    private static final int REQUEST_CODE_SELECT_RRN = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_processing);
         
-        // Get data from previous screen
+        // Check if launched in reversal mode
+        String mode = getIntent().getStringExtra("mode");
+        isReversalMode = "reversal".equals(mode);
+        
+        if (isReversalMode) {
+            // Reversal mode: No amount required, just RRN input
+            LogUtil.e(Constant.TAG, "=== REVERSAL MODE ACTIVATED ===");
+            mHandler = new Handler(Looper.getMainLooper());
+            
+            // Initialize architecture components for reversal
+            initializeArchitectureComponents();
+            
+            initView();
+            updateStatus("Reversal Transaction", 0);
+            startReversal();
+            return;
+        }
+        
+        // Normal payment mode: Get data from previous screen
         mAmount = getIntent().getStringExtra("amount"); // Piasters for SDK
         mAmountDisplay = getIntent().getStringExtra("amountDisplay"); // Pounds for display
         mPin = getIntent().getStringExtra("pin");
@@ -179,13 +212,44 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
         mPinPadOptV2 = MyApplication.app.pinPadOptV2;
         mSecurityOptV2 = MyApplication.app.securityOptV2;
         
+        // Initialize new architecture components (Clean Architecture)
+        initializeArchitectureComponents();
+        
         initView();
         startRealPaymentProcess();
     }
 
+    /**
+     * Initialize new architecture components (Clean Architecture)
+     * This replaces direct business logic in the activity
+     */
+    private void initializeArchitectureComponents() {
+        // Create dependency provider with SDK components
+        dependencyProvider = new TransactionDependencyProvider(
+            mEMVOptV2,
+            mReadCardOptV2,
+            mPinPadOptV2,
+            mSecurityOptV2
+        );
+        
+        // Get components from dependency provider
+        cvmHandler = dependencyProvider.createCvmHandler();
+        transactionUseCase = dependencyProvider.createProcessEmvTransactionUseCase();
+        pinEntryUseCase = dependencyProvider.createPinEntryUseCase();
+        
+        // Initialize TransactionRepository for reversals
+        transactionRepository = new com.neo.neopayplus.processing.repository.TransactionRepository();
+        
+        LogUtil.e(Constant.TAG, "✓ Clean Architecture components initialized");
+    }
+    
     private void initView() {
         Toolbar toolbar = findViewById(R.id.toolbar);
-        toolbar.setTitle("Processing Payment");
+        if (isReversalMode) {
+            toolbar.setTitle("Reverse Transaction");
+        } else {
+            toolbar.setTitle("Processing Payment");
+        }
         toolbar.setNavigationIcon(R.drawable.ic_back_white);
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
@@ -197,7 +261,12 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
         
         mBtnCancel.setOnClickListener(this);
         
-        updateAmountDisplay();
+        if (!isReversalMode) {
+            updateAmountDisplay();
+        } else {
+            // Hide amount display in reversal mode
+            mTvAmountDisplay.setText("Reversal Transaction");
+        }
     }
 
     @Override
@@ -323,7 +392,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 
                 checkCard();
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("startRealPaymentProcess", e);
             updateStatus("Error initializing payment process", 0);
             showToast("Error starting payment process: " + e.getMessage());
             mIsEmvProcessRunning = false;
@@ -435,13 +504,11 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             
                 LogUtil.e(Constant.TAG, "✓ Terminal parameters set for transaction");
         } catch (Exception e) {
-                LogUtil.e(Constant.TAG, "⚠️ Error setting terminal parameters: " + e.getMessage());
-            e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("initEmvTlvData", "Error setting terminal parameters", e);
             }
             
             } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "Error verifying EMV configuration: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("initEmvTlvData", "Error verifying EMV configuration", e);
         }
     }
     
@@ -600,8 +667,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             LogUtil.e(Constant.TAG, "=== END DEBUG: EMV PIN/CVM Analysis ===");
             
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "Error in extractPinAndCvmData: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("extractPinAndCvmData", e);
         }
     }
     
@@ -623,7 +689,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 mReadCardOptV2.checkCard(cardType, mCheckCardCallback, 60);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("checkCard", e);
             mIsEmvProcessRunning = false;
             updateStatus("Error checking for card", 0);
             showToast("Error checking for card: " + e.getMessage());
@@ -693,11 +759,11 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             updateStatus("Starting EMV transaction...", 60);
             
             // Reset PIN attempts counter for new transaction
-            mPinAttemptsLeft.set(MAX_PIN_ATTEMPTS);
+            pinEntryUseCase.resetAttempts();
             mOnlinePinBlock = null;
             mKsn = null;
             mCurrentPinType = -1;
-            LogUtil.e(Constant.TAG, "🔄 Transaction started - PIN attempts counter reset to " + MAX_PIN_ATTEMPTS);
+            LogUtil.e(Constant.TAG, "🔄 Transaction started - PIN attempts counter reset");
             
             // CRITICAL: Re-initialize EMV process and TLV data right before transaction
             // This ensures terminal parameters are set correctly for contactless
@@ -805,7 +871,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             LogUtil.e(Constant.TAG, "Calling transactProcessEx() with flowType=" + flowTypeValue + "...");
             mEMVOptV2.transactProcessEx(bundle, mEMVListener);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("transactProcess", e);
             updateStatus("Error starting transaction", 0);
             showToast("Error starting transaction: " + e.getMessage());
         }
@@ -830,8 +896,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 mEMVOptV2.importAppSelect(0);
                     LogUtil.e(Constant.TAG, "✓ Auto-selected first AID candidate (index 0) - EMV kernel matched successfully");
             } catch (Exception e) {
-                    LogUtil.e(Constant.TAG, "❌ Error selecting AID: " + e.getMessage());
-                e.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError("importAppSelect", e);
                 }
             } else {
                 LogUtil.e(Constant.TAG, "❌ CRITICAL: AID candidate list is empty!");
@@ -878,7 +943,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             try {
                 mEMVOptV2.importCardNoStatus(0);
             } catch (Exception e) {
-                e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("importCardNoStatus", e);
             }
         }
 
@@ -898,9 +963,9 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             pinEnteredThisTxn = true;
             LogUtil.e(Constant.TAG, "✓ PIN entry marked for this transaction");
             
-            // Log current PIN attempts status
-            int attemptsLeft = mPinAttemptsLeft.get();
-            LogUtil.e(Constant.TAG, "📊 PIN attempts remaining: " + attemptsLeft + " / " + MAX_PIN_ATTEMPTS);
+            // Log current PIN attempts status (using PinEntryUseCase)
+            int attemptsLeft = pinEntryUseCase.getRemainingAttempts();
+            LogUtil.e(Constant.TAG, "📊 PIN attempts remaining: " + attemptsLeft);
             
             // Get card number if not already available (required for PinPad PAN)
             if (mCardNo == null || mCardNo.isEmpty()) {
@@ -936,62 +1001,25 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             try {
                 LogUtil.e(Constant.TAG, "Launching Sunmi secure PinPad - Amount: " + mAmount + " " + com.neo.neopayplus.config.PaymentConfig.CURRENCY_NAME + ", Card: " + (mCardNo != null ? maskCardNumber(mCardNo) : "Unknown"));
                 
-                // Configure PinPad for secure PIN entry with proper CVM handling
-                com.sunmi.pay.hardware.aidlv2.bean.PinPadConfigV2 pinPadConfig = new com.sunmi.pay.hardware.aidlv2.bean.PinPadConfigV2();
-                pinPadConfig.setPinPadType(0); // 0 = SDK built-in PinPad, 1 = Client customized PinPad
-                pinPadConfig.setPinType(pinType); // 0 = offline PIN, 1 = online PIN
-                pinPadConfig.setOrderNumKey(false); // Don't use ordered number key
-                
-                // Key system configuration
-                // 0 = MKSK (Master Key Set Key) - Default for most terminals
-                // 1 = DUKPT (Derived Unique Key Per Transaction) - Required for online PIN in some regions
-                // For online PIN, DUKPT provides better security with unique keys per transaction
-                // Check terminal capability or configuration for DUKPT support
-                // If your acquirer requires DUKPT for online PIN, set keySystem = 1
-                // Note: DUKPT keys must be initialized via SunmiPayLibKeyManager.saveDukptKey()
-                int keySystem = 0; // Default to MKSK - update if DUKPT required by acquirer
-                pinPadConfig.setKeySystem(keySystem);
-                
-                pinPadConfig.setAlgorithmType(0); // 0 = 3DES (most common), 1 = SM4, 2 = AES
-                pinPadConfig.setMaxInput(6); // Maximum PIN length
-                pinPadConfig.setMinInput(4); // Minimum PIN length
-                pinPadConfig.setTimeout(PIN_ENTRY_TIMEOUT_MS); // 60 seconds timeout (per guide)
-                // PIN key index (TPK - Terminal PIN Key)
-                // Use active slot from KeyManagerPOS (session TPK with pin_key_id)
-                int activePinSlot = com.neo.neopayplus.security.KeyManagerPOS.getActivePinSlot();
-                pinPadConfig.setPinKeyIndex(activePinSlot);
-                LogUtil.e(Constant.TAG, "Using session TPK slot: " + activePinSlot);
-                
-                // PIN Block Format - CRITICAL for online PIN
-                // ISO 9564 Format 0: Most common, uses PAN (12 digits excluding check digit)
-                // ISO 9564 Format 4: Uses full PAN (12-19 digits) - used with AES
-                // For online PIN, Format 0 is standard (PIN block sent to backend in authorization)
-                pinPadConfig.setPinblockFormat(PinBlockFormat.SEC_PIN_BLK_ISO_FMT0);
+                // Configure PinPad using PinPadHelper utility (eliminates duplicate code)
+                // Use production-ready configuration with active slot from KeyManagerPOS
+                com.sunmi.pay.hardware.aidlv2.bean.PinPadConfigV2 pinPadConfig = 
+                    com.neo.neopayplus.utils.PinPadHelper.builder()
+                        .setCardNo(mCardNo)
+                        .setPinType(pinType)
+                        .useActiveSlot() // Use active slot from KeyManagerPOS (recommended for production)
+                        .setTimeout(PIN_ENTRY_TIMEOUT_MS)
+                        .setInputLength(4, 6) // Standard PIN length (4-6 digits)
+                        .setKeySystem(0) // MKSK (default)
+                        .setAlgorithmType(0) // 3DES
+                        .build();
                 
                 LogUtil.e(Constant.TAG, "PinPad Configuration:");
                 LogUtil.e(Constant.TAG, "  PIN Type: " + (pinType == 1 ? "Online" : "Offline"));
-                LogUtil.e(Constant.TAG, "  Key System: " + (keySystem == 1 ? "DUKPT" : "MKSK"));
+                LogUtil.e(Constant.TAG, "  Key System: MKSK");
                 LogUtil.e(Constant.TAG, "  PIN Block Format: ISO-0");
                 LogUtil.e(Constant.TAG, "  Algorithm: 3DES");
-                LogUtil.e(Constant.TAG, "  Key Index: 12");
-                
-                // Set PAN if available - REQUIRED for PIN block encryption (ISO-0 format)
-                if (mCardNo != null && mCardNo.length() >= 14) {
-                    try {
-                        // For ISO-0 format: Use only the last 12 digits of PAN (excluding check digit)
-                        // This is required for PIN block encryption
-                        String panSubstring = mCardNo.substring(mCardNo.length() - 13, mCardNo.length() - 1);
-                        byte[] panBytes = panSubstring.getBytes("US-ASCII");
-                        pinPadConfig.setPan(panBytes);
-                        LogUtil.e(Constant.TAG, "PAN set for PinPad: " + panSubstring + " (required for PIN block encryption)");
-                    } catch (Exception e) {
-                        LogUtil.e(Constant.TAG, "Error setting PAN for PinPad: " + e.getMessage());
-                        // Continue without PAN - PinPad may fail for online PIN
-                    }
-                } else {
-                    LogUtil.e(Constant.TAG, "⚠️ WARNING: No valid PAN available for PinPad");
-                    LogUtil.e(Constant.TAG, "⚠️ PAN is required for online PIN encryption (ISO-0 format)");
-                }
+                LogUtil.e(Constant.TAG, "  Key Index: " + com.neo.neopayplus.security.KeyManagerPOS.getActivePinSlot());
                 
                 // Use the secure PinPad from the SDK
                 mPinPadOptV2.initPinPad(pinPadConfig, new PinPadListenerV2.Stub() {
@@ -1042,9 +1070,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                                 LogUtil.e(Constant.TAG, "✓ This notification prevents EMV timeout (must be < 10s)");
                                 LogUtil.e(Constant.TAG, "✓ Backend authorization will happen in onOnlineProc() later (non-blocking)");
                         } catch (Exception e) {
-                                LogUtil.e(Constant.TAG, "❌ CRITICAL ERROR: Failed to notify EMV kernel of offline PIN - may cause timeout!");
-                                LogUtil.e(Constant.TAG, "   Error: " + e.getMessage());
-                                e.printStackTrace();
+                                com.neo.neopayplus.utils.ErrorHandler.logError("importPinInputStatus", "Failed to notify EMV kernel of offline PIN - may cause timeout!", e);
                             }
                         } else {
                             // ============================================================
@@ -1174,14 +1200,13 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 });
                 
             } catch (Exception e) {
-                LogUtil.e(Constant.TAG, "Error launching Sunmi secure PinPad: " + e.getMessage());
-                e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("initPinPad", e);
                 
                 // Fallback: notify EMV kernel that PIN entry failed
                 try {
                     mEMVOptV2.importPinInputStatus(1, 0);
                 } catch (Exception ex) {
-                    LogUtil.e(Constant.TAG, "Error notifying EMV kernel of PIN failure: " + ex.getMessage());
+                    com.neo.neopayplus.utils.ErrorHandler.logError("importPinInputStatus", ex);
                 }
             }
         }
@@ -1194,7 +1219,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             try {
                 mEMVOptV2.importSignatureStatus(0);
             } catch (Exception e) {
-                e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("importSignatureStatus", e);
             }
         }
 
@@ -1206,7 +1231,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             try {
                 mEMVOptV2.importCertStatus(0);
             } catch (Exception e) {
-                e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("importCertStatus", e);
             }
         }
 
@@ -1215,317 +1240,45 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             // ============================================================
             // ONLINE PROCESSING CALLBACK (called by EMV kernel)
             // ============================================================
-            // This is called AFTER PIN entry for both offline and online PIN:
-            // - Offline PIN: PIN already verified by card, kernel notified immediately
-            //   → Backend authorization happens here (non-blocking, no timeout risk)
-            // - Online PIN: PIN block stored, waiting for backend verification
-            //   → Send PIN block to backend, wait for response, notify kernel
+            // REFACTORED: Now delegates to ProcessEmvTransactionUseCase
+            // This improves separation of concerns and testability
             // ============================================================
             LogUtil.e(Constant.TAG, "=== ONLINE PROCESSING REQUESTED ===");
-            LogUtil.e(Constant.TAG, "🌐 EMV kernel requesting online authorization");
-            LogUtil.e(Constant.TAG, "📋 PIN Type: " + (mCurrentPinType == 0 ? "Offline PIN (already verified by card)" : "Online PIN (needs backend verification)"));
             runOnUiThread(() -> updateStatus("Online processing... Building Field 55", 95));
             
             try {
-                // PayLib v2.0.32: Prefer getAccountSecData() with getTlvList() fallback
-                Bundle tlvBundle = null;
-                String field55 = "";
+                // Build transaction data for Use Case
+                ProcessEmvTransactionUseCase.TransactionData transactionData = 
+                    new ProcessEmvTransactionUseCase.TransactionData(
+                        mCardNo,
+                        mAmount,
+                        com.neo.neopayplus.config.PaymentConfig.getCurrencyCode(),
+                        mCardType,
+                        pinEnteredThisTxn,
+                        fallbackUsed,
+                        mOnlinePinBlock,
+                        mKsn,
+                        mCurrentPinType,
+                        currentStan
+                    );
                 
-                try {
-                    // Try secure account data extraction first (PayLib v2.0.32 preferred)
-                    String[] field55Tags = {
-                        "9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A",
-                        "82", "9F1A", "9F34", "9F33", "9F35", "9F1E", "84", "9F09", "9F41", "5A", "5F24", "5F34"
-                    };
-                    Bundle secDataBundle = new Bundle();
-                    int result = mEMVOptV2.getAccountSecData(0, field55Tags, secDataBundle);
-                    if (result == 0) {
-                        tlvBundle = secDataBundle;
-                        LogUtil.e(Constant.TAG, "Using getAccountSecData() for secure extraction");
-                    } else {
-                        throw new Exception("getAccountSecData failed with code: " + result);
-                    }
-                } catch (Exception e) {
-                    LogUtil.e(Constant.TAG, "getAccountSecData() failed, falling back to getTlvList(): " + e.getMessage());
-                    
-                    // Fallback to getTlvList() with full Apple Pay tag list
-                    String[] field55Tags = {
-                        "9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A",
-                        "82", "9F1A", "9F34", "9F33", "9F35", "9F1E", "84", "9F09", "9F41", "5A", "5F24", "5F34"
-                    };
-                    
-                    byte[] outData = new byte[2048];
-                    int len = mEMVOptV2.getTlvList(AidlConstantsV2.EMV.TLVOpCode.OP_NORMAL, field55Tags, outData);
-                    if (len > 0) {
-                        byte[] tlvData = new byte[len];
-                        System.arraycopy(outData, 0, tlvData, 0, len);
-                        field55 = ByteUtil.bytes2HexStr(tlvData);
-                        // Security: Only log Field 55 in debug builds (contains ARQC and sensitive EMV data)
-                        if (com.neo.neopayplus.BuildConfig.DEBUG) {
-                            String maskedField55 = field55.length() > 20 
-                                ? field55.substring(0, 10) + "..." + field55.substring(field55.length() - 10)
-                                : "****";
-                            LogUtil.e(Constant.TAG, "Field 55 built using getTlvList() (masked): " + maskedField55);
-                        } else {
-                            LogUtil.e(Constant.TAG, "Field 55 built using getTlvList() - length: " + field55.length() + " bytes");
+                // Delegate to Use Case (handles Field 55 extraction, CVM, and authorization)
+                transactionUseCase.processOnlineAuthorization(transactionData, 
+                    new ProcessEmvTransactionUseCase.TransactionCallback() {
+                        @Override
+                        public void onSuccess(PaymentApiService.AuthorizationResponse response) {
+                            handleAuthorizationResponse(response);
                         }
-                    }
-                }
-                
-                if (tlvBundle != null) {
-                    // Build Field 55 from secure data bundle
-                    field55 = buildField55FromBundle(tlvBundle);
-                    // Security: Only log Field 55 in debug builds
-                    if (com.neo.neopayplus.BuildConfig.DEBUG) {
-                        String maskedField55 = field55.length() > 20 
-                            ? field55.substring(0, 10) + "..." + field55.substring(field55.length() - 10)
-                            : "****";
-                        LogUtil.e(Constant.TAG, "Field 55 built from getAccountSecData() (masked): " + maskedField55);
-                    } else {
-                        LogUtil.e(Constant.TAG, "Field 55 built from getAccountSecData() - length: " + field55.length() + " bytes");
-                    }
-                }
-                
-                // Extract CVM Result (9F34) to determine if PIN should be sent to backend
-                mCvmResultCode = extractCvmResultCode();
-                LogUtil.e(Constant.TAG, "=== CVM RESULT ANALYSIS ===");
-                LogUtil.e(Constant.TAG, "CVM Result Code (9F34): " + (mCvmResultCode != null ? mCvmResultCode : "Not available"));
-                
-                // Determine PIN handling based on CVM Result
-                boolean shouldSendPinToBackend = false;
-                String cvmDescription = "";
-                
-                if (mCvmResultCode != null) {
-                    switch (mCvmResultCode) {
-                        case "00":
-                            cvmDescription = "No CVM required";
-                            shouldSendPinToBackend = false;
-                            LogUtil.e(Constant.TAG, "✓ No PIN required - skipping PIN block");
-                            break;
-                        case "01":
-                        case "02":
-                            // Online PIN codes: 0x01 or 0x02 indicate online PIN required
-                            cvmDescription = "Online PIN required";
-                            shouldSendPinToBackend = true;
-                            LogUtil.e(Constant.TAG, "✓ Online PIN detected (code: " + mCvmResultCode + ") - PIN block will be sent to backend");
-                            break;
-                        case "42":
-                            // Offline PIN: Card already verified PIN internally
-                            cvmDescription = "Offline PIN verified by card";
-                            shouldSendPinToBackend = false;
-                            LogUtil.e(Constant.TAG, "✓ Offline PIN detected (code: 42) - Card verified PIN, do NOT send PIN block to backend");
-                            break;
-                        case "03":
-                        case "5E":
-                            cvmDescription = "CDCVM performed (Apple Pay/Google Pay)";
-                            shouldSendPinToBackend = false;
-                            LogUtil.e(Constant.TAG, "✓ CDCVM detected - no PIN block needed");
-                            break;
-                        default:
-                            cvmDescription = "Unknown CVM code: " + mCvmResultCode;
-                            shouldSendPinToBackend = false;
-                            LogUtil.e(Constant.TAG, "⚠️ Unknown CVM code: " + mCvmResultCode + " - not sending PIN block");
-                            break;
-                    }
-                } else {
-                    // Fallback: if CVM result not available, check PIN type from EMV kernel
-                    if (mCurrentPinType == 1) {
-                        shouldSendPinToBackend = true;
-                        cvmDescription = "Online PIN (detected from PIN type)";
-                        LogUtil.e(Constant.TAG, "⚠️ CVM result not available, but PIN type indicates online PIN - will send PIN block");
-                    } else {
-                        shouldSendPinToBackend = false;
-                        cvmDescription = "CVM result not available";
-                        LogUtil.e(Constant.TAG, "⚠️ CVM result not available - not sending PIN block");
-                    }
-                }
-                
-                // Send transaction to backend for authorization via API service
-                // Security: Never log full Field 55 (contains ARQC and sensitive EMV data)
-                if (com.neo.neopayplus.BuildConfig.DEBUG) {
-                    String maskedField55 = field55.length() > 20 
-                        ? field55.substring(0, 10) + "..." + field55.substring(field55.length() - 10)
-                        : "****";
-                    LogUtil.e(Constant.TAG, "Field 55 ready for backend authorization (masked): " + maskedField55);
-                } else {
-                    LogUtil.e(Constant.TAG, "Field 55 ready for backend authorization - length: " + field55.length() + " bytes");
-                }
-                
-                // Build authorization request
-                com.neo.neopayplus.api.PaymentApiService.AuthorizationRequest authRequest = 
-                    new com.neo.neopayplus.api.PaymentApiService.AuthorizationRequest();
-                authRequest.field55 = field55;
-                authRequest.pan = mCardNo;
-                authRequest.amount = mAmount;
-                authRequest.currencyCode = com.neo.neopayplus.config.PaymentConfig.getCurrencyCode();
-                authRequest.transactionType = "00"; // Purchase
-                
-                // Set date/time
-                java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("yyMMdd", java.util.Locale.US);
-                java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HHmmss", java.util.Locale.US);
-                java.util.Date now = new java.util.Date();
-                authRequest.date = dateFormat.format(now);
-                authRequest.time = timeFormat.format(now);
-                
-                // Include PIN block + KSN ONLY if CVM indicates online PIN
-                if (shouldSendPinToBackend && mOnlinePinBlock != null && mOnlinePinBlock.length > 0) {
-                    String pinBlockHex = com.neo.neopayplus.utils.ByteUtil.bytes2HexStr(mOnlinePinBlock);
-                    authRequest.pinBlock = pinBlockHex.getBytes(); // Convert hex string to bytes
-                    authRequest.ksn = mKsn;
-                    LogUtil.e(Constant.TAG, "✓ Including PIN block + KSN in authorization request (" + cvmDescription + ")");
-                    if (com.neo.neopayplus.BuildConfig.DEBUG) {
-                        LogUtil.e(Constant.TAG, "  PIN block (masked): " + 
-                            (pinBlockHex.length() > 8 
-                                ? pinBlockHex.substring(0, 4) + "****" + pinBlockHex.substring(pinBlockHex.length() - 4)
-                                : "****"));
-                        LogUtil.e(Constant.TAG, "  KSN: " + (mKsn != null ? mKsn : "null"));
-                    }
-                } else {
-                    if (mCvmResultCode != null && "42".equals(mCvmResultCode)) {
-                        LogUtil.e(Constant.TAG, "✓ Offline PIN transaction - PIN already verified by card, NOT sending PIN block to backend");
-                    } else if ("00".equals(mCvmResultCode)) {
-                        LogUtil.e(Constant.TAG, "✓ No PIN required - NOT sending PIN block to backend");
-                    } else {
-                        LogUtil.e(Constant.TAG, "⚠️ No PIN block available or CVM indicates offline PIN - transaction may be offline PIN or no PIN required");
-                }
-                }
-                
-                // Extract EMV tags (AID, TSI, TVR, DE55) immediately before sending online
-                try {
-                    // Extract Field 55 (ICC Data)
-                    byte[] field55Bytes = new byte[2048];
-                    int field55Len = mEMVOptV2.getTlv(AidlConstantsV2.EMV.TLVOpCode.OP_READ, "55", field55Bytes);
-                    String tlv55 = field55Len > 0 ? ByteUtil.bytes2HexStr(java.util.Arrays.copyOf(field55Bytes, field55Len)) : null;
-                    
-                    // Extract AID (tag 84)
-                    byte[] aidBytes = new byte[256];
-                    int aidLen = mEMVOptV2.getTlv(AidlConstantsV2.EMV.TLVOpCode.OP_READ, "84", aidBytes);
-                    currentAid = aidLen > 0 ? ByteUtil.bytes2HexStr(java.util.Arrays.copyOf(aidBytes, aidLen)) : null;
-                    
-                    // Extract TSI (tag 9B)
-                    byte[] tsiBytes = new byte[64];
-                    int tsiLen = mEMVOptV2.getTlv(AidlConstantsV2.EMV.TLVOpCode.OP_READ, "9B", tsiBytes);
-                    currentTsi = tsiLen > 0 ? ByteUtil.bytes2HexStr(java.util.Arrays.copyOf(tsiBytes, tsiLen)) : null;
-                    
-                    // Extract TVR (tag 95)
-                    byte[] tvrBytes = new byte[64];
-                    int tvrLen = mEMVOptV2.getTlv(AidlConstantsV2.EMV.TLVOpCode.OP_READ, "95", tvrBytes);
-                    currentTvr = tvrLen > 0 ? ByteUtil.bytes2HexStr(java.util.Arrays.copyOf(tvrBytes, tvrLen)) : null;
-                    
-                    // Extract PAN (tag 5A) and mask it
-                    byte[] panBytes = new byte[256];
-                    int panLen = mEMVOptV2.getTlv(AidlConstantsV2.EMV.TLVOpCode.OP_READ, "5A", panBytes);
-                    String panHex = panLen > 0 ? ByteUtil.bytes2HexStr(java.util.Arrays.copyOf(panBytes, panLen)) : null;
-                    if (panHex != null && panHex.length() > 0) {
-                        // Convert hex PAN to ASCII and mask
-                        String panAscii = hexToAscii(panHex);
-                        lastPanMasked = maskCardNumber(panAscii);
-                    }
-                    
-                    // Build DE22 (Entry Mode)
-                    currentEntryMode = EntryModeUtil.de22(mCardType, pinEnteredThisTxn, fallbackUsed);
-                    
-                    // Get KSN for active slot
-                    String ksn = getKsnForActiveSlot();
-                    if (!TextUtils.isEmpty(ksn)) {
-                        authRequest.ksn = ksn;
-                    }
-                    
-                    // STAN is already set via generateStan() - AuthorizationRequest doesn't have stan field
-                    
-                    LogUtil.e(Constant.TAG, "✓ Extracted EMV tags:");
-                    LogUtil.e(Constant.TAG, "  STAN: " + currentStan);
-                    LogUtil.e(Constant.TAG, "  Entry Mode: " + currentEntryMode);
-                    LogUtil.e(Constant.TAG, "  AID: " + (currentAid != null ? currentAid.substring(0, Math.min(20, currentAid.length())) + "..." : "null"));
-                    LogUtil.e(Constant.TAG, "  TSI: " + (currentTsi != null ? currentTsi : "null"));
-                    LogUtil.e(Constant.TAG, "  TVR: " + (currentTvr != null ? currentTvr : "null"));
-                    LogUtil.e(Constant.TAG, "  KSN: " + (ksn != null && !ksn.isEmpty() ? ksn.substring(0, Math.min(20, ksn.length())) + "..." : "null"));
-                    
-                } catch (Exception e) {
-                    LogUtil.e(Constant.TAG, "⚠️ Error extracting EMV tags: " + e.getMessage());
-                    e.printStackTrace();
-                    // Continue with transaction even if tag extraction fails
-                    currentEntryMode = EntryModeUtil.de22(mCardType, pinEnteredThisTxn, fallbackUsed);
-                }
-                
-                // Build and store exact JSON request body that will be sent to backend
-                mBackendRequestJson = buildBackendRequestJson(authRequest);
-                LogUtil.e(Constant.TAG, "✓ Built backend request JSON (length: " + mBackendRequestJson.length() + " chars)");
-                
-                LogUtil.e(Constant.TAG, "Requesting backend authorization: " + authRequest.toString());
-                
-                // (Non-invasive) POS-only host gateway call for 1200 (mock)
-                try {
-                    com.neo.neopayplus.host.dto.PurchaseReq req = new com.neo.neopayplus.host.dto.PurchaseReq();
-                    req.panMasked = lastPanMasked != null ? lastPanMasked : (mCardNo != null ? maskCardNumber(mCardNo) : "");
-                    req.de3 = "000000"; // Processing Code
-                    req.de4 = String.format(java.util.Locale.US, "%012d", Long.parseLong(mAmount)); // Amount (minor units)
-                    req.de11 = String.format(java.util.Locale.US, "%06d", currentStan); // STAN
-                    // DE12: Local time (hhmmss) - extract from YYMMDDhhmmss
-                    String localFull = com.neo.neopayplus.utils.TimeUtil.localYYMMDDhhmmss(); // Returns "yyMMddHHmmss"
-                    req.de12 = localFull.substring(6); // Extract "HHmmss" part
-                    req.de7 = com.neo.neopayplus.utils.TimeUtil.gmtYYMMDDhhmm(); // DE7: Transmission datetime (YYMMDDhhmm) - GMT
-                    req.de14 = "0000"; // Expiry (YYMM) - fill if available
-                    req.de18 = "0000"; // MCC - fill if available
-                    req.de22 = currentEntryMode != null ? currentEntryMode : com.neo.neopayplus.utils.EntryModeUtil.de22(mCardType, pinEnteredThisTxn, fallbackUsed);
-                    req.de24 = "200"; // Function code for purchase
-                    req.de32 = "000000"; // Acquirer ID (LLVAR) - supply real acquirer id when available
-                    req.de41 = com.neo.neopayplus.config.PaymentConfig.getTerminalId(); // TID
-                    req.de42 = com.neo.neopayplus.config.PaymentConfig.getMerchantId(); // MID
-                    req.de49 = com.neo.neopayplus.config.PaymentConfig.getCurrencyCode(); // Currency
-                    req.de55 = (currentAid != null || currentTsi != null || currentTvr != null) ? new byte[0] : new byte[0]; // placeholder
-                    req.pinPresent = (mOnlinePinBlock != null && mOnlinePinBlock.length > 0);
-                    if (req.pinPresent) req.de52 = mOnlinePinBlock;
-                    
-                    com.neo.neopayplus.host.dto.HostResult mockResp = com.neo.neopayplus.utils.ServiceLocator.host().purchase(req);
-                    LogUtil.e(Constant.TAG, "[HostGateway] purchase rc=" + mockResp.rc + ", rrn=" + mockResp.rrn + ", auth=" + mockResp.authCode);
-                } catch (Throwable th) {
-                    LogUtil.e(Constant.TAG, "[HostGateway] purchase mock call error: " + th.getMessage());
-                }
-                
-                // Get API service and request authorization
-                com.neo.neopayplus.api.PaymentApiService apiService = 
-                    com.neo.neopayplus.api.PaymentApiFactory.getInstance();
-                
-                if (!apiService.isAvailable()) {
-                    LogUtil.e(Constant.TAG, "⚠️ Payment API service not available");
-                    handleAuthorizationError(new Exception("Payment API service not available"));
-                    return;
-                }
-                
-                // Request authorization asynchronously
-                runOnUiThread(() -> updateStatus("Authorizing transaction...", 92));
-                
-                apiService.authorizeTransaction(authRequest, new com.neo.neopayplus.api.PaymentApiService.AuthorizationCallback() {
-                    @Override
-                    public void onAuthorizationComplete(com.neo.neopayplus.api.PaymentApiService.AuthorizationResponse response) {
-                        handleAuthorizationResponse(response);
-                    }
-                    
-                    @Override
-                    public void onAuthorizationError(Throwable error) {
-                        handleAuthorizationError(error);
-                    }
-                });
+                        
+                        @Override
+                        public void onError(Throwable error) {
+                            handleAuthorizationError(error);
+                        }
+                    });
                 
             } catch (Exception e) {
-                LogUtil.e(Constant.TAG, "Error in online processing: " + e.getMessage());
-                e.printStackTrace();
-                
-                // Notify EMV kernel of failed online processing
-                try {
-                    String[] tags = {};
-                    String[] values = {};
-                    byte[] out = new byte[1024];
-                    int len = mEMVOptV2.importOnlineProcStatus(1, tags, values, out);
-                    if (len >= 0) {
-                        LogUtil.e(Constant.TAG, "Notified EMV kernel of online processing failure");
-                    } else {
-                        LogUtil.e(Constant.TAG, "Failed to notify EMV kernel of online processing failure, code: " + len);
-                    }
-                } catch (Exception ex) {
-                    LogUtil.e(Constant.TAG, "Error notifying EMV kernel of online processing failure: " + ex.getMessage());
-                }
+                com.neo.neopayplus.utils.ErrorHandler.logError("onOnlineProc", e);
+                handleAuthorizationError(e);
             }
         }
 
@@ -1761,7 +1514,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 LogUtil.e(Constant.TAG, "  Response Code: " + response.responseCode);
                 
                 // Reset PIN attempts for next transaction
-                mPinAttemptsLeft.set(MAX_PIN_ATTEMPTS);
+                pinEntryUseCase.resetAttempts();
                 
                 // Clear stored PIN block for security
                 if (mOnlinePinBlock != null) {
@@ -1792,10 +1545,11 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 LogUtil.e(Constant.TAG, "❌ WRONG PIN RESPONSE from backend");
                 LogUtil.e(Constant.TAG, "  Response Code: " + responseCode + " (Wrong PIN)");
                 
-                int attemptsLeft = mPinAttemptsLeft.decrementAndGet();
+                pinEntryUseCase.decrementAttempts();
+                int attemptsLeft = pinEntryUseCase.getRemainingAttempts();
                 LogUtil.e(Constant.TAG, "  Attempts remaining: " + attemptsLeft);
                 
-                if (attemptsLeft > 0) {
+                if (!pinEntryUseCase.areAttemptsExhausted()) {
                     // Retry: Clear stored PIN block and re-prompt
                     if (mOnlinePinBlock != null) {
                         java.util.Arrays.fill(mOnlinePinBlock, (byte) 0);
@@ -1864,8 +1618,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             }
             
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "Error handling authorization response: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("handleAuthorizationResponse", e);
             // Fallback: decline transaction on error
             try {
                 String[] tags = {};
@@ -1882,8 +1635,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
      * Handle authorization error (network, timeout, etc.)
      */
     private void handleAuthorizationError(Throwable error) {
-        LogUtil.e(Constant.TAG, "❌ AUTHORIZATION ERROR: " + error.getMessage());
-        error.printStackTrace();
+        com.neo.neopayplus.utils.ErrorHandler.logError("handleAuthorizationError", error);
         
         runOnUiThread(() -> updateStatus("Authorization error: " + error.getMessage(), 0));
         
@@ -1931,8 +1683,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 // For now, set to null - backend may still work if KSN is provided via other means
             }
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "⚠️ Exception fetching KSN: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("fetchKsnForOnlinePin", e);
         }
     }
     
@@ -1990,8 +1741,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             db.insertJournal(rec);
             LogUtil.e(Constant.TAG, "✓ Journal entry saved - STAN: " + currentStan + ", RRN: " + rrn);
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "Error saving journal: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("saveJournal", e);
         }
     }
     
@@ -2012,8 +1762,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             db.enqueueReversal(r);
             LogUtil.e(Constant.TAG, "✓ Reversal enqueued - STAN: " + currentStan + ", Reason: " + reason);
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "Error enqueueing reversal: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("enqueueReversal", e);
         }
     }
     
@@ -2081,8 +1830,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
             
             @Override
             public void onKeyRotationError(Throwable error) {
-                LogUtil.e(Constant.TAG, "❌ Key rotation failed: " + error.getMessage());
-                error.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("onKeyRotationError", error);
                 runOnUiThread(() -> {
                     updateStatus("Key rotation failed: " + error.getMessage(), 0);
                     showToast("Key rotation failed");
@@ -2167,8 +1915,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 });
             }
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "❌ Error storing new keys: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("storeNewKeys", e);
             runOnUiThread(() -> {
                 updateStatus("Key storage failed: " + e.getMessage(), 0);
                 showToast("Key storage failed");
@@ -2224,7 +1971,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
         }
         
         // Reset attempts for next transaction
-        mPinAttemptsLeft.set(MAX_PIN_ATTEMPTS);
+        pinEntryUseCase.resetAttempts();
     }
     
     private void completeProcessing() {
@@ -2329,51 +2076,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
         }
     }
     
-    /**
-     * Extract CVM Result code (9F34) from EMV kernel
-     * Returns the CVM code to determine if PIN should be sent to backend
-     * - "00" = No CVM required
-     * - "01" or "02" = Online PIN (send PIN block to backend)
-     * - "42" = Offline PIN (card verified PIN, do NOT send PIN block)
-     * - "03" or "5E" = CDCVM (no PIN block)
-     */
-    private String extractCvmResultCode() {
-        try {
-            byte[] outData = new byte[256];
-            int len = mEMVOptV2.getTlv(AidlConstantsV2.EMV.TLVOpCode.OP_NORMAL, "9F34", outData);
-            if (len > 0) {
-                byte[] cvmData = new byte[len];
-                System.arraycopy(outData, 0, cvmData, 0, len);
-                String hexValue = ByteUtil.bytes2HexStr(cvmData);
-                
-                // Extract actual CVM value (skip tag and length if present)
-                String actualCvmValue = hexValue;
-                if (hexValue.startsWith("9F34")) {
-                    // Format: 9F34 + length + value
-                    if (hexValue.length() >= 6) {
-                        String lengthHex = hexValue.substring(4, 6);
-                        int length = Integer.parseInt(lengthHex, 16);
-                        if (hexValue.length() >= 6 + length * 2) {
-                            actualCvmValue = hexValue.substring(6, 6 + length * 2);
-                        }
-                    }
-                }
-                
-                // Extract first byte (CVM code)
-                if (actualCvmValue.length() >= 2) {
-                    String cvmCode = actualCvmValue.substring(0, 2);
-                    LogUtil.e(Constant.TAG, "Extracted CVM Result code: " + cvmCode + " from hex value: " + actualCvmValue);
-                    return cvmCode;
-                }
-            } else {
-                LogUtil.e(Constant.TAG, "⚠️ Could not extract CVM Result (9F34) - tag not available");
-            }
-        } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "Error extracting CVM Result code: " + e.getMessage());
-            e.printStackTrace();
-        }
-        return null;
-    }
+    // Note: extractCvmResultCode() removed - now using CvmHandler.extractCvmResultCode()
     
     /**
      * Parse EMV tags from field55 (simplified version)
@@ -2620,7 +2323,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 return Objects.requireNonNull(tlvMap.get("5A")).getValue();
             }
         } catch (RemoteException e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("getCardNo", e);
         }
         return "";
     }
@@ -2985,10 +2688,190 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
         }
     }
 
+    // ==================== REVERSAL FLOW ====================
+    
+    /**
+     * Start reversal transaction
+     * Called when ProcessingActivity is launched in reversal mode
+     */
+    private void startReversal() {
+        // Get last RRN from journal (auto-fill if available)
+        String lastRrn = com.neo.neopayplus.data.TransactionJournal.getLastRrn();
+        
+        // Show dialog to enter RRN (or use last RRN if available)
+        showReversalDialog(lastRrn);
+    }
+    
+    /**
+     * Show reversal RRN input dialog
+     */
+    private void showReversalDialog(String defaultRrn) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        builder.setTitle("Reverse Transaction");
+        
+        // Create EditText for RRN input
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("Enter RRN");
+        if (defaultRrn != null && !defaultRrn.isEmpty()) {
+            input.setText(defaultRrn);
+        }
+        builder.setView(input);
+        
+        builder.setPositiveButton("Reverse", (dialog, which) -> {
+            String rrn = input.getText().toString().trim();
+            if (rrn.isEmpty()) {
+                showToast("Please enter RRN");
+                return;
+            }
+            processReversal(rrn);
+        });
+        
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            dialog.cancel();
+            finish(); // Exit reversal mode
+        });
+        
+        builder.setNeutralButton("Select from History", (dialog, which) -> {
+            // Open transaction history to select RRN
+            Intent historyIntent = new Intent(this, 
+                com.neo.neopayplus.transactions.TransactionHistoryActivity.class);
+            startActivityForResult(historyIntent, REQUEST_CODE_SELECT_RRN);
+        });
+        
+        builder.show();
+    }
+    
+    /**
+     * Process reversal transaction
+     * Uses TransactionRepository (clean architecture) instead of direct API calls
+     */
+    private void processReversal(String rrn) {
+        LogUtil.e(Constant.TAG, "=== PROCESSING REVERSAL ===");
+        LogUtil.e(Constant.TAG, "  RRN: " + rrn);
+        
+        updateStatus("Processing reversal...", 50);
+        
+        // Find original transaction by RRN
+        com.neo.neopayplus.data.TransactionJournal.TransactionRecord originalTx = 
+            com.neo.neopayplus.data.TransactionJournal.findTransactionByRrn(rrn);
+        
+        if (originalTx == null) {
+            runOnUiThread(() -> {
+                updateStatus("Transaction not found", 0);
+                showToast("Transaction not found for RRN: " + rrn);
+            });
+            LogUtil.e(Constant.TAG, "❌ No transaction found with RRN: " + rrn);
+            return;
+        }
+        
+        // Build reversal request
+        PaymentApiService.ReversalRequest request = new PaymentApiService.ReversalRequest();
+        request.terminalId = com.neo.neopayplus.config.PaymentConfig.getTerminalId();
+        request.merchantId = com.neo.neopayplus.config.PaymentConfig.getMerchantId();
+        request.rrn = rrn;
+        request.amount = originalTx.amount;
+        request.currencyCode = originalTx.currencyCode != null ? 
+            originalTx.currencyCode : com.neo.neopayplus.config.PaymentConfig.getCurrencyCode();
+        request.reversalReason = "USER_REQUEST";
+        
+        // Send reversal using TransactionRepository (clean architecture)
+        updateStatus("Sending reversal to backend...", 70);
+        transactionRepository.reverseTransaction(request, new PaymentApiService.ReversalCallback() {
+            @Override
+            public void onReversalComplete(PaymentApiService.ReversalResponse response) {
+                runOnUiThread(() -> {
+                    if (response.approved) {
+                        LogUtil.e(Constant.TAG, "✓ Reversal Approved ✅");
+                        updateStatus("Reversal Approved ✅", 100);
+                        showToast("Reversal Approved ✅");
+                        
+                        // Save to journal
+                        com.neo.neopayplus.data.TransactionJournal.TransactionRecord reversal = 
+                            new com.neo.neopayplus.data.TransactionJournal.TransactionRecord();
+                        reversal.rrn = request.rrn;
+                        reversal.amount = request.amount;
+                        reversal.currencyCode = request.currencyCode;
+                        reversal.transactionType = "20"; // Reversal
+                        reversal.responseCode = response.responseCode;
+                        reversal.status = "APPROVED";
+                        reversal.isReversal = true;
+                        reversal.originalRrn = request.rrn;
+                        
+                        // Use current date/time
+                        java.text.SimpleDateFormat dateFormat = 
+                            new java.text.SimpleDateFormat("yyMMdd", java.util.Locale.US);
+                        java.text.SimpleDateFormat timeFormat = 
+                            new java.text.SimpleDateFormat("HHmmss", java.util.Locale.US);
+                        java.util.Date now = new java.util.Date();
+                        reversal.date = dateFormat.format(now);
+                        reversal.time = timeFormat.format(now);
+                        
+                        com.neo.neopayplus.data.TransactionJournal.saveTransaction(reversal);
+                        
+                        // Navigate to success screen or finish
+                        mHandler.postDelayed(() -> finish(), 2000);
+                        
+                    } else {
+                        LogUtil.e(Constant.TAG, "❌ Reversal Declined: " + response.responseCode);
+                        updateStatus("Reversal Declined", 0);
+                        showToast("Reversal Declined: " + response.responseMessage);
+                    }
+                });
+            }
+            
+            @Override
+            public void onReversalError(Throwable error) {
+                runOnUiThread(() -> {
+                    LogUtil.e(Constant.TAG, "❌ Reversal failed: " + error.getMessage());
+                    updateStatus("Reversal failed - Host unavailable", 0);
+                    // Host down - queue reversal offline
+                    queueReversalOffline(request);
+                });
+            }
+        });
+    }
+    
+    /**
+     * Queue reversal offline (when host is down)
+     * Uses TxnDb for offline queue (same as normal transactions)
+     */
+    private void queueReversalOffline(PaymentApiService.ReversalRequest request) {
+        try {
+            // Use TxnDb for offline reversal queue (consistent with normal transactions)
+            TxnDb db = new TxnDb(this);
+            java.util.Map<String, Object> reversalRecord = new java.util.HashMap<>();
+            reversalRecord.put("rrn", request.rrn);
+            reversalRecord.put("amount_minor", Long.parseLong(request.amount));
+            reversalRecord.put("currency", request.currencyCode);
+            reversalRecord.put("reason", request.reversalReason != null ? 
+                request.reversalReason : "HOST_UNAVAILABLE");
+            reversalRecord.put("created_at", com.neo.neopayplus.utils.TimeSync.nowIso());
+            
+            db.enqueueReversal(reversalRecord);
+            
+            LogUtil.e(Constant.TAG, "✓ Reversal queued offline ⏳");
+            showToast("Host down — reversal queued ⏳");
+            updateStatus("Reversal queued offline", 0);
+            
+            // Finish after showing message
+            mHandler.postDelayed(() -> finish(), 2000);
+            
+        } catch (Exception e) {
+            com.neo.neopayplus.utils.ErrorHandler.logError("queueReversalOffline", e);
+            showToast("Error queueing reversal offline");
+            updateStatus("Error queueing reversal", 0);
+        }
+    }
+    
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_PIN_INPUT) {
+        if (requestCode == REQUEST_CODE_SELECT_RRN && resultCode == RESULT_OK) {
+            String rrn = data.getStringExtra("rrn");
+            if (rrn != null && !rrn.isEmpty()) {
+                processReversal(rrn);
+            }
+        } else if (requestCode == REQ_PIN_INPUT) {
             if (resultCode == RESULT_OK && data != null) {
                 String pin = data.getStringExtra("pin");
                 LogUtil.e(Constant.TAG, "PIN entered successfully, length=" + (pin != null ? pin.length() : 0));
@@ -2996,7 +2879,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                 try {
                     mEMVOptV2.importPinInputStatus(0, 0);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError("importPinInputStatus", e);
                 }
                 runOnUiThread(() -> updateStatus("PIN entered. Continuing...", 92));
             } else {
@@ -3005,7 +2888,7 @@ public class ProcessingActivity extends BaseAppCompatActivity implements View.On
                     // Notify EMV kernel that PIN entry was cancelled
                     mEMVOptV2.importPinInputStatus(1, 0);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError("importPinInputStatus", e);
                 }
                 runOnUiThread(() -> {
                     updateStatus("PIN entry cancelled", 0);
