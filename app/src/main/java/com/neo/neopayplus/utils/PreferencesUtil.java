@@ -61,7 +61,7 @@ public final class PreferencesUtil {
             // Encode byte stream to Base64 string
             return new String(Base64.encode(bos.toByteArray(), 0));
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("PreferencesUtil", e);
         } finally {
             IOUtil.close(bos);
             IOUtil.close(oos);
@@ -89,7 +89,7 @@ public final class PreferencesUtil {
             // Read object
             return (T) ois.readObject();
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("PreferencesUtil", e);
         } finally {
             IOUtil.close(ois);
             IOUtil.close(bis);

@@ -23,7 +23,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             return (String) method.invoke(null, key);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
         return null;
     }
@@ -42,7 +42,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             return (String) method.invoke(null, key, def);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
         return null;
     }
@@ -64,7 +64,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             return (int) method.invoke(null, key, def);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
         return 0;
     }
@@ -86,7 +86,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             return (long) method.invoke(null, key, def);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
         return 0;
     }
@@ -113,7 +113,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             return (boolean) method.invoke(null, key, def);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
         return false;
     }
@@ -131,7 +131,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             method.invoke(null, key, val);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
     }
 
@@ -150,7 +150,7 @@ public final class SystemPropertiesUtil {
             method.setAccessible(true);
             method.invoke(null, callback);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemPropertiesUtil", e);
         }
     }
 

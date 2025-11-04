@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.neo.neopayplus">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Network permission (required for API calls) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -36,15 +35,22 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="LockedOrientationActivity">
+        <!-- New Compose UI - Main Activity (Launcher) -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".MainActivityCompose"
+            android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <!-- Legacy Java UI - kept for reference but not used as launcher -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
         <activity android:name=".amount.AmountInputActivity" />
         <activity android:name=".pin.PinInputActivity" />
         <activity android:name=".processing.ProcessingActivity" />

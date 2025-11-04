@@ -239,8 +239,7 @@ public class SettlementActivity extends BaseAppCompatActivity implements View.On
                     updateStatus("Batch upload failed");
                     updateResults("Error: " + error.getMessage());
                     showToast("Batch upload failed: " + error.getMessage());
-                    LogUtil.e(Constant.TAG, "❌ Settlement batch upload error: " + error.getMessage());
-                    error.printStackTrace();
+                    com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Settlement batch upload", error);
                 });
             }
         });

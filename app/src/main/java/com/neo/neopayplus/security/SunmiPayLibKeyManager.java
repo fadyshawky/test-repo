@@ -132,8 +132,7 @@ public class SunmiPayLibKeyManager {
             return true;
             
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, TAG + ": Exception initializing MKSK keys: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Initializing MKSK keys", e);
             return false;
         }
     }
@@ -190,8 +189,7 @@ public class SunmiPayLibKeyManager {
             return true;
             
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, TAG + ": Exception initializing DUKPT keys: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Initializing DUKPT keys", e);
             return false;
         }
     }

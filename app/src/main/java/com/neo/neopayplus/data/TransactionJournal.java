@@ -94,7 +94,7 @@ public class TransactionJournal {
             LogUtil.e(TAG, "✓ Transaction saved to journal: " + record.rrn);
         } catch (Exception e) {
             LogUtil.e(TAG, "❌ Error saving transaction to journal: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "TransactionJournal", e);
         }
     }
     
@@ -187,7 +187,7 @@ public class TransactionJournal {
             LogUtil.e(TAG, "✓ Pending reversal saved: " + rrn);
         } catch (Exception e) {
             LogUtil.e(TAG, "❌ Error saving pending reversal: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "TransactionJournal", e);
         }
     }
     

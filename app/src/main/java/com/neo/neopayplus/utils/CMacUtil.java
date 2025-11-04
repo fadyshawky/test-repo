@@ -65,7 +65,7 @@ public final class CMacUtil {
             cipher.init(Cipher.ENCRYPT_MODE, aesKey, ips);
             return cipher.doFinal(lastBData);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("CMacUtil", e);
         }
         return new byte[0];
     }
@@ -83,7 +83,7 @@ public final class CMacUtil {
             cipher.init(Cipher.ENCRYPT_MODE, aesKey, ips);
             L = cipher.doFinal(Z);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("CMacUtil", e);
         }
 
         byte[] K1 = null, K2 = null;

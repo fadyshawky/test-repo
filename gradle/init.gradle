@@ -1,0 +1,17 @@
+// Gradle init script to remove deprecated android.injected.build.density property
+// This is injected by Android Studio but removed in AGP 8.0+
+allprojects {
+    beforeEvaluate { project ->
+        // Remove the deprecated property if it exists
+        def injectedDensity = System.getProperty('android.injected.build.density')
+        if (injectedDensity != null) {
+            System.clearProperty('android.injected.build.density')
+        }
+        
+        // Also check project properties
+        if (project.hasProperty('android.injected.build.density')) {
+            project.ext.remove('android.injected.build.density')
+        }
+    }
+}
+

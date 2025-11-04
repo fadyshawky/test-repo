@@ -35,7 +35,7 @@ import com.sunmi.peripheral.printer.InnerPrinterCallback;
 import com.sunmi.peripheral.printer.InnerPrinterException;
 import com.sunmi.peripheral.printer.InnerPrinterManager;
 import com.sunmi.peripheral.printer.SunmiPrinterService;
-import com.sunmi.scanner.IScanInterface;
+// import com.sunmi.scanner.IScanInterface; // Optional scanner dependency - commented out if not available
 
 import java.util.Locale;
 
@@ -58,7 +58,7 @@ public class MyApplication extends Application {
     public HCEManagerV2Wrapper hceV2Wrapper;        // HCE操作模块
     public RFIDOptV2 rfidOptV2;                     // RFID操作模块
     public SunmiPrinterService sunmiPrinterService; // 打印模块
-    public IScanInterface scanInterface;            // 扫码模块
+    // public IScanInterface scanInterface;            // 扫码模块 - Optional scanner dependency
     public BiometricManagerV2 mBiometricManagerV2;  // 生物特征模块
 
     private boolean connectPaySDK;//是否已连接PaySDK
@@ -220,8 +220,7 @@ public class MyApplication extends Application {
                     }
                 }
             } catch (Exception e) {
-                com.neo.neopayplus.utils.LogUtil.e(Constant.TAG, "Background operations thread error: " + e.getMessage());
-                e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Background operations thread", e);
             }
         }, "bg-ops").start();
     }
@@ -360,7 +359,7 @@ public class MyApplication extends Application {
                 }
             });
         } catch (InnerPrinterException e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "MyApplication printer initialization", e);
         }
     }
 
@@ -368,20 +367,21 @@ public class MyApplication extends Application {
      * bind scanner service
      */
     public void bindScannerService() {
-        Intent intent = new Intent();
-        intent.setPackage("com.sunmi.scanner");
-        intent.setAction("com.sunmi.scanner.IScanInterface");
-        bindService(intent, new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                scanInterface = IScanInterface.Stub.asInterface(service);
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                scanInterface = null;
-            }
-        }, Service.BIND_AUTO_CREATE);
+        // Scanner service binding - commented out if IScanInterface not available
+        // Intent intent = new Intent();
+        // intent.setPackage("com.sunmi.scanner");
+        // intent.setAction("com.sunmi.scanner.IScanInterface");
+        // bindService(intent, new ServiceConnection() {
+        //     @Override
+        //     public void onServiceConnected(ComponentName name, IBinder service) {
+        //         scanInterface = IScanInterface.Stub.asInterface(service);
+        //     }
+        //
+        //     @Override
+        //     public void onServiceDisconnected(ComponentName name) {
+        //         scanInterface = null;
+        //     }
+        // }, Service.BIND_AUTO_CREATE);
     }
 
     private void initEmvTTS() {
@@ -458,8 +458,7 @@ public class MyApplication extends Application {
             }
             
         } catch (Exception ex) {
-            LogUtil.e(Constant.TAG, "❌ Master/Session initialization error: " + ex.getMessage());
-            ex.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Master/Session initialization", ex);
         }
     }
     
@@ -592,8 +591,7 @@ public class MyApplication extends Application {
                 LogUtil.e(Constant.TAG, "⚠️ Transactions with online PIN may fail");
             }
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "❌ Error injecting DUKPT keys: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Injecting DUKPT keys", e);
         }
     }
     

@@ -116,8 +116,7 @@ public class ReversalWorker {
             }
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "ReversalWorker: Error in tick: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "ReversalWorker tick", e);
         }
     }
 }

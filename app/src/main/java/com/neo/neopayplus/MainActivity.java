@@ -45,23 +45,18 @@ public class MainActivity extends BaseAppCompatActivity {
             return;
         }
         final int id = v.getId();
-        switch (id) {
-            case R.id.card_view_card:
-                openActivity(AmountInputActivity.class);
-                break;
-            case R.id.btnDebug:
-                // Open DebugActivity to view ISO8583 logs
-                openActivity(com.neo.neopayplus.debug.DebugActivity.class);
-                break;
-            case R.id.btnSettle:
-                openActivity(SettlementActivity.class);
-                break;
-            case R.id.btnReverse:
-                // Navigate to ProcessingActivity in reversal mode (uses clean architecture)
-                Intent reversalIntent = new Intent(this, com.neo.neopayplus.processing.ProcessingActivity.class);
-                reversalIntent.putExtra("mode", "reversal");
-                startActivity(reversalIntent);
-                break;
+        if (id == R.id.card_view_card) {
+            openActivity(AmountInputActivity.class);
+        } else if (id == R.id.btnDebug) {
+            // Open DebugActivity to view ISO8583 logs
+            openActivity(com.neo.neopayplus.debug.DebugActivity.class);
+        } else if (id == R.id.btnSettle) {
+            openActivity(SettlementActivity.class);
+        } else if (id == R.id.btnReverse) {
+            // Navigate to ProcessingActivity in reversal mode (uses clean architecture)
+            Intent reversalIntent = new Intent(this, com.neo.neopayplus.processing.ProcessingActivity.class);
+            reversalIntent.putExtra("mode", "reversal");
+            startActivity(reversalIntent);
         }
     }
 

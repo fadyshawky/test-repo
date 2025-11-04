@@ -184,8 +184,7 @@ public final class KeyManagerPOS {
             return true;
             
         } catch (Exception ex) {
-            LogUtil.e(TAG, "❌ installSessionKeysUnderTmk error: " + ex.getMessage());
-            ex.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "installSessionKeysUnderTmk", ex);
             return false;
         }
     }
@@ -286,8 +285,7 @@ public final class KeyManagerPOS {
             return true;
             
         } catch (Throwable t) {
-            LogUtil.e(TAG, "ensureSessionTPK error: " + t.getMessage());
-            t.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "ensureSessionTPK", t);
             callback.onError("Exception: " + t.getMessage());
             return false;
         }
@@ -352,8 +350,7 @@ public final class KeyManagerPOS {
                 return false;
             }
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error importing TR-31 key: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Importing TR-31 key", e);
             return false;
         }
     }
@@ -386,8 +383,7 @@ public final class KeyManagerPOS {
             return tr31;
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "TR-31 export error: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "TR-31 export", e);
             return null;
         }
     }

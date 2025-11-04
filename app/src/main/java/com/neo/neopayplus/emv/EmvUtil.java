@@ -105,7 +105,7 @@ public final class EmvUtil {
 
             LogUtil.e(Constant.TAG, "init key success");
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "EmvUtil", e);
             LogUtil.e(Constant.TAG, "init key fail");
         }
     }
@@ -220,7 +220,7 @@ public final class EmvUtil {
             emvOptV2.addCapk(capkV2);
             LogUtil.e(Constant.TAG, "init AID and CAPKs success");
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "EmvUtil", e);
             LogUtil.e(Constant.TAG, "initAIDAndRid fail");
         }
     }
@@ -328,7 +328,7 @@ public final class EmvUtil {
             emvOptV2.addCapk(capkV2);
             LogUtil.e(Constant.TAG, "init AID and CAPKs success");
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "EmvUtil", e);
             LogUtil.e(Constant.TAG, "initAIDAndRid fail");
         }
     }
@@ -349,7 +349,7 @@ public final class EmvUtil {
             int result = emvOptV2.setTerminalParam(emvTermParam);
             LogUtil.e(Constant.TAG, "setTerminalParam result:" + result);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "EmvUtil", e);
             LogUtil.e(Constant.TAG, "setTerminalParam fail");
         }
     }

@@ -5,6 +5,20 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# Keep Compose
+-keep class androidx.compose.** { *; }
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
+
+# Keep Sunmi AIDLs and PayLib
+-keep class com.sunmi.** { *; }
+-dontwarn com.sunmi.**
+
+# Keep application classes
+-keep class com.neo.neopayplus.** { *; }
+-keep class com.neo.neopayplus.emv.** { *; }
+-keep class com.neo.neopayplus.processing.** { *; }
+
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface
 # class:

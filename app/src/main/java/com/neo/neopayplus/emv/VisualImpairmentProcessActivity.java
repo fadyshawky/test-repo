@@ -122,27 +122,26 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
 
     @Override
     public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.mb_ok:
-                LogUtil.e(Constant.TAG, "***************************************************************");
-                LogUtil.e(Constant.TAG, "****************************Start Process**********************");
-                LogUtil.e(Constant.TAG, "***************************************************************");
-                mTvShowInfo.setText("");
-                String amount = mEditAmount.getText().toString();
-                try {
-                    // Before check card, initialize emv process(clear all TLV)
-                    if (!checkAmount(amount)) {
-                        showLoadingDlg("Please input correct amount", 2000);
-                    } else if (mSwitch.isChecked()) {
-                        playTransInstruction(amount);
-                        checkCard();
-                    } else {
-                        checkCard();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+        final int id = v.getId();
+        if (id == R.id.mb_ok) {
+            LogUtil.e(Constant.TAG, "***************************************************************");
+            LogUtil.e(Constant.TAG, "****************************Start Process**********************");
+            LogUtil.e(Constant.TAG, "***************************************************************");
+            mTvShowInfo.setText("");
+            String amount = mEditAmount.getText().toString();
+            try {
+                // Before check card, initialize emv process(clear all TLV)
+                if (!checkAmount(amount)) {
+                    showLoadingDlg("Please input correct amount", 2000);
+                } else if (mSwitch.isChecked()) {
+                    playTransInstruction(amount);
+                    checkCard();
+                } else {
+                    checkCard();
                 }
-                break;
+            } catch (Exception e) {
+                com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity onClick", e);
+            }
         }
     }
 
@@ -163,7 +162,7 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
             int result = mSecurityOptV2.savePlaintextKey(Security.KEY_TYPE_PIK, dataByte, null, Security.KEY_ALG_TYPE_3DES, PIK_INDEX);
             LogUtil.e(Constant.TAG, "save PIK result:" + result);
         } catch (RemoteException e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity savePIK", e);
         }
     }
 
@@ -219,7 +218,7 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
             checkingCard = true;
             mReadCardOptV2.checkCard(cardType, mCheckCardCallback, 120);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity checkCard", e);
         }
     }
 
@@ -314,7 +313,7 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
             MyApplication.app.pinPadOptV2.initPinPadEx(bundle, mPinPadListener);
             postCheckInputPinMsg(42000);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity initPinPad", e);
         }
     }
 
@@ -413,7 +412,7 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
                 resetUI(delayTime);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity onConfirm", e);
         }
     }
 
@@ -447,7 +446,7 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
             mReadCardOptV2.cardOff(CardType.NFC.getValue());
             mReadCardOptV2.cancelCheckCard();
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity cardOff", e);
         }
     }
 
@@ -514,7 +513,7 @@ public class VisualImpairmentProcessActivity extends BaseAppCompatActivity {
                 return true;
             }
         } catch (RemoteException e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "VisualImpairmentProcessActivity checkCardExistStatus", e);
         }
         return false;
     }

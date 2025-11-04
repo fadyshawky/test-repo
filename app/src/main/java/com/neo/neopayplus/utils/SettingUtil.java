@@ -55,7 +55,7 @@ public final class SettingUtil {
             return true;
         } catch (Exception e) {
             LogUtil.e(TAG, "SettingUtil getSupportKeyPartition:" + e);
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return true;
     }
@@ -71,7 +71,7 @@ public final class SettingUtil {
             jobj.put(KEY_SUPPORT_KEY_PARTITION, enable);
             MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -95,7 +95,7 @@ public final class SettingUtil {
             }
         } catch (Exception e) {
             LogUtil.e(TAG, "SettingUtil getPSAMChannel:" + e);
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return channel;
     }
@@ -128,7 +128,7 @@ public final class SettingUtil {
             LogUtil.e(TAG, "switch psam channel to " + curChannel + " success");
         } catch (Exception e) {
             LogUtil.e(TAG, "SettingUtil getSupportKeyPartition:" + e);
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -147,7 +147,7 @@ public final class SettingUtil {
             autoRestoreNfc = jobj.getBoolean(KEY_AUTO_RESTORE_NFC);
             LogUtil.e(TAG, "autoRestoreNfc:" + autoRestoreNfc);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return autoRestoreNfc;
     }
@@ -167,7 +167,7 @@ public final class SettingUtil {
             jobj.put(KEY_AUTO_RESTORE_NFC, enable);
             MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -185,7 +185,7 @@ public final class SettingUtil {
 //                LogUtil.e(TAG, "setPinPadMode failed,code:" + code);
 //            }
 //        } catch (RemoteException e) {
-//            e.printStackTrace();
+//            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
 //        }
 //        return code;
         return 0;
@@ -211,7 +211,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_APP_SELECT_TIME, maxAppSelectTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -236,7 +236,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_APP_FINAL_SELECT_TIME, maxAppFinalSelectTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -261,7 +261,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_CONFIRM_CARD_NO_TIME, maxConfirmCardNoTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -286,7 +286,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_INPUT_PIN_TIME, maxInputPinTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -311,7 +311,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_SIGNATURE_TIME, maxSignatureTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -336,7 +336,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_CERT_VERIFY_TIME, maxCertVerifyTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -361,7 +361,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_ONLINE_TIME, maxOnlineTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -386,7 +386,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_DATA_EXCHANGE_TIME, maxDataExchangeTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -405,7 +405,7 @@ public final class SettingUtil {
             jobj.put(KEY_TERM_RISK_MANAGEMENT, enable);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -430,7 +430,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_TERM_RISK_TIME, maxTermRiskTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -449,7 +449,7 @@ public final class SettingUtil {
             jobj.put(KEY_PRE_FIRST_GEN_AC, enable);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -474,7 +474,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAX_PRE_FIRST_GEN_AC_TIME, maxPreFirstGenACTime);
             code = MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return code;
     }
@@ -495,7 +495,7 @@ public final class SettingUtil {
             jobj.put(KEY_BUZZER, enable ? 1 : 0);
             MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -518,7 +518,7 @@ public final class SettingUtil {
             LogUtil.e(TAG, "isolateM1AndCPU:" + value);
             return value;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return true;
     }
@@ -538,7 +538,7 @@ public final class SettingUtil {
             jobj.put(KEY_ISOLATE_M1_CPU, isolate);
             MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -558,7 +558,7 @@ public final class SettingUtil {
             jobj.put(KEY_CARD_POLL_INTERVAL_TIME, time);
             MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -582,7 +582,7 @@ public final class SettingUtil {
             LogUtil.e(TAG, "cardPollIntervalTime:" + value);
             return value;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return defaultValue;
     }
@@ -603,7 +603,7 @@ public final class SettingUtil {
             jobj.put(KEY_MAG_CARD_ROUND_POLL_TIMES, times);
             MyApplication.app.basicOptV2.setSysParam(AidlConstantsV2.SysParam.RESERVED, jobj.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
     }
 
@@ -627,7 +627,7 @@ public final class SettingUtil {
             LogUtil.e(TAG, "magCardRoundPollTimes:" + value);
             return value;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "SettingUtil operation", e);
         }
         return defaultValue;
     }

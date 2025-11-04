@@ -21,7 +21,7 @@ public final class IOUtil {
             try {
                 src.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                com.neo.neopayplus.utils.ErrorHandler.logError("IOUtil.closeStream", e);
             }
         }
     }
@@ -43,7 +43,7 @@ public final class IOUtil {
         try {
             Thread.sleep(time);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("IOUtil.sleep", e);
         }
     }
 }

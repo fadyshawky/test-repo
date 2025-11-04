@@ -120,8 +120,7 @@ public class EmvConfigurationManager {
             return true;
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "Error initializing EMV configuration: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Initializing EMV configuration", e);
             return false;
         }
     }

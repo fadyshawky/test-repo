@@ -99,8 +99,7 @@ public class IsoLogger {
             return logFile.getAbsolutePath();
             
         } catch (IOException e) {
-            LogUtil.e(TAG, "❌ Error saving ISO frame: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Saving ISO frame", e);
             return null;
         }
     }
@@ -143,8 +142,7 @@ public class IsoLogger {
             LogUtil.e(TAG, "✓ Retrieved " + logs.size() + " ISO log entries");
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error retrieving ISO logs: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Retrieving ISO logs", e);
         }
         
         return logs;
@@ -174,8 +172,7 @@ public class IsoLogger {
             return content.toString();
             
         } catch (IOException e) {
-            LogUtil.e(TAG, "❌ Error reading log file: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Reading log file", e);
             return null;
         }
     }
@@ -259,8 +256,7 @@ public class IsoLogger {
             LogUtil.e(TAG, "✓ Cleared " + deleted + " ISO log files");
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error clearing logs: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Clearing ISO logs", e);
         }
         
         return deleted;

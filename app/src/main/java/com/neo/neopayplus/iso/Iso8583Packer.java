@@ -120,8 +120,7 @@ public class Iso8583Packer {
             return isoFrame;
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error packing ISO8583 0100: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Packing ISO8583 0100", e);
             return new byte[0];
         }
     }
@@ -207,8 +206,7 @@ public class Iso8583Packer {
             return isoFrame;
             
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error packing ISO8583 0400: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Packing ISO8583 0400", e);
             return new byte[0];
         }
     }

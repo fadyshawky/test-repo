@@ -89,8 +89,7 @@ public class DebugActivity extends BaseAppCompatActivity {
             LogUtil.e(Constant.TAG, "✓ Loaded " + logFiles.size() + " ISO log entries");
             
         } catch (Exception e) {
-            LogUtil.e(Constant.TAG, "❌ Error loading ISO logs: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Loading ISO logs", e);
             mTvLogs.setText("Error loading ISO logs: " + e.getMessage());
         }
     }

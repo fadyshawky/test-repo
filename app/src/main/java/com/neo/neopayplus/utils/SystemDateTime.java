@@ -141,7 +141,7 @@ public class SystemDateTime {
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemDateTime", e);
         }
         return null;
     }
@@ -159,7 +159,7 @@ public class SystemDateTime {
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemDateTime", e);
         }
         return "";
     }
@@ -227,7 +227,7 @@ public class SystemDateTime {
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemDateTime", e);
         }
         return "";
     }
@@ -238,7 +238,7 @@ public class SystemDateTime {
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemDateTime", e);
         }
         return "";
     }
@@ -252,7 +252,7 @@ public class SystemDateTime {
             LogUtil.i("nsz", "parseInt:" + parseInt);
             return parseInt;
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("SystemDateTime", e);
         }
         return 0;
     }

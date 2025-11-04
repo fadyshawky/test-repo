@@ -186,7 +186,7 @@ public class DataViewActivity extends BaseAppCompatActivity implements View.OnCl
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("DataViewActivity", e);
         }
         
         return emvData;

@@ -38,8 +38,7 @@ public class ReversalQueueStore {
             sp.edit().putString(KEY, arr.toString()).apply();
             LogUtil.e(TAG, "✓ Reversal queued offline: " + (rev.has("rrn") ? rev.optString("rrn") : "N/A"));
         } catch (Exception e) {
-            LogUtil.e(TAG, "❌ Error queuing reversal: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Queuing reversal", e);
         }
     }
     

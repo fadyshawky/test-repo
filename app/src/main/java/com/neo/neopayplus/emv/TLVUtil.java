@@ -118,7 +118,7 @@ public final class TLVUtil {
                 tag = hexString.substring(position, position + 2);// 1Bytes的tag
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "TLVUtil", e);
         }
         return TupleUtil.tuple(tag.toUpperCase(), position + tag.length());
     }
@@ -150,7 +150,7 @@ public final class TLVUtil {
         try {
             value = hexStr.substring(position, position + len * 2);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "TLVUtil", e);
         }
         return TupleUtil.tuple(value.toUpperCase(), position + len * 2);
     }
@@ -248,7 +248,7 @@ public final class TLVUtil {
             
         } catch (Exception e) {
             LogUtil.e(Constant.TAG, "❌ Error extracting amount from Field 55: " + e.getMessage());
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "TLVUtil", e);
             return -1;
         }
     }

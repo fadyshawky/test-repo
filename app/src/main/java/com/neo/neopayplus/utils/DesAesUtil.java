@@ -22,7 +22,7 @@ public final class DesAesUtil {
             cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
             return cipher.doFinal(data);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("DesAesUtil", e);
         }
         return null;
     }
@@ -41,7 +41,7 @@ public final class DesAesUtil {
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
             return cipher.doFinal(data);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("DesAesUtil", e);
         }
         return null;
     }
@@ -60,7 +60,7 @@ public final class DesAesUtil {
             cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
             return cipher.doFinal(data);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("DesAesUtil", e);
         }
         return null;
     }
@@ -79,7 +79,7 @@ public final class DesAesUtil {
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
             return cipher.doFinal(data);
         } catch (Exception e) {
-            e.printStackTrace();
+            com.neo.neopayplus.utils.ErrorHandler.logError("DesAesUtil", e);
         }
         return null;
     }
