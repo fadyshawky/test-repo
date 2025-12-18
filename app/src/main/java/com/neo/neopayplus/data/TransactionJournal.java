@@ -27,36 +27,36 @@ import java.util.Locale;
  * - Transaction history lookup
  */
 public class TransactionJournal {
-    
+
     private static final String TAG = Constant.TAG;
     private static final String PREFERENCE_FILE_NAME = "neopayplus_prefs";
     private static final String KEY_TRANSACTION_JOURNAL = "transaction_journal";
     private static final String KEY_LAST_RRN = "last_rrn";
     private static final int MAX_JOURNAL_SIZE = 100; // Keep last 100 transactions
-    
+
     /**
      * Transaction Record
      */
     public static class TransactionRecord {
-        public String rrn;               // Retrieval Reference Number
-        public String authCode;          // Authorization code
-        public String pan;               // Primary Account Number (masked)
-        public String amount;            // Transaction amount in smallest currency unit
-        public String currencyCode;      // Currency code
-        public String transactionType;   // Transaction type (00=sale, 20=reversal)
-        public String date;              // Transaction date (YYMMDD)
-        public String time;              // Transaction time (HHMMSS)
-        public String responseCode;      // ISO 8583 response code (e.g., "00" = approved)
-        public String status;            // Transaction status (APPROVED, DECLINED, PENDING)
-        public long timestamp;           // System timestamp (milliseconds)
-        public boolean isReversal;       // true if this is a reversal transaction
-        public String originalRrn;      // Original RRN (for reversals)
-        
+        public String rrn; // Retrieval Reference Number
+        public String authCode; // Authorization code
+        public String pan; // Primary Account Number (masked)
+        public String amount; // Transaction amount in smallest currency unit
+        public String currencyCode; // Currency code
+        public String transactionType; // Transaction type (00=sale, 20=reversal)
+        public String date; // Transaction date (YYMMDD)
+        public String time; // Transaction time (HHMMSS)
+        public String responseCode; // ISO 8583 response code (e.g., "00" = approved)
+        public String status; // Transaction status (APPROVED, DECLINED, PENDING)
+        public final long timestamp; // System timestamp (milliseconds)
+        public boolean isReversal; // true if this is a reversal transaction
+        public String originalRrn; // Original RRN (for reversals)
+
         public TransactionRecord() {
             this.timestamp = System.currentTimeMillis();
             this.isReversal = false;
         }
-        
+
         @Override
         public String toString() {
             return "TransactionRecord{" +
@@ -67,37 +67,37 @@ public class TransactionJournal {
                     '}';
         }
     }
-    
+
     /**
      * Save transaction to journal
      */
     public static void saveTransaction(TransactionRecord record) {
         try {
             List<TransactionRecord> journal = loadJournal();
-            
+
             // Add new transaction at the beginning
             journal.add(0, record);
-            
+
             // Keep only last MAX_JOURNAL_SIZE transactions
             if (journal.size() > MAX_JOURNAL_SIZE) {
                 journal = journal.subList(0, MAX_JOURNAL_SIZE);
             }
-            
+
             // Save updated journal
             saveJournal(journal);
-            
+
             // Save as last RRN if approved
             if (record.rrn != null && "00".equals(record.responseCode)) {
                 saveLastRrn(record.rrn);
             }
-            
+
             LogUtil.e(TAG, "✓ Transaction saved to journal: " + record.rrn);
         } catch (Exception e) {
             LogUtil.e(TAG, "❌ Error saving transaction to journal: " + e.getMessage());
             com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "TransactionJournal", e);
         }
     }
-    
+
     /**
      * Get last RRN (for auto-fill in reversal)
      */
@@ -111,7 +111,7 @@ public class TransactionJournal {
             return null;
         }
     }
-    
+
     /**
      * Save last RRN
      */
@@ -124,7 +124,7 @@ public class TransactionJournal {
             LogUtil.e(TAG, "Error saving last RRN: " + e.getMessage());
         }
     }
-    
+
     /**
      * Get last N transactions
      */
@@ -133,14 +133,14 @@ public class TransactionJournal {
         int size = Math.min(count, journal.size());
         return journal.subList(0, size);
     }
-    
+
     /**
      * Get all transactions in journal
      */
     public static List<TransactionRecord> getAllTransactions() {
         return loadJournal();
     }
-    
+
     /**
      * Find transaction by RRN
      */
@@ -148,7 +148,7 @@ public class TransactionJournal {
         if (rrn == null || rrn.isEmpty()) {
             return null;
         }
-        
+
         List<TransactionRecord> journal = loadJournal();
         for (TransactionRecord record : journal) {
             if (rrn.equals(record.rrn)) {
@@ -157,7 +157,7 @@ public class TransactionJournal {
         }
         return null;
     }
-    
+
     /**
      * Save pending reversal (for offline queue)
      */
@@ -171,26 +171,26 @@ public class TransactionJournal {
             reversal.status = "PENDING";
             reversal.isReversal = true;
             reversal.originalRrn = rrn;
-            
+
             // Use current date/time
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMdd", Locale.US);
             SimpleDateFormat timeFormat = new SimpleDateFormat("HHmmss", Locale.US);
             Date now = new Date();
             reversal.date = dateFormat.format(now);
             reversal.time = timeFormat.format(now);
-            
+
             // Store in pending reversals list
             List<TransactionRecord> pendingReversals = getPendingReversals();
             pendingReversals.add(reversal);
             savePendingReversals(pendingReversals);
-            
+
             LogUtil.e(TAG, "✓ Pending reversal saved: " + rrn);
         } catch (Exception e) {
             LogUtil.e(TAG, "❌ Error saving pending reversal: " + e.getMessage());
             com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "TransactionJournal", e);
         }
     }
-    
+
     /**
      * Get pending reversals (for retry when host comes back online)
      */
@@ -199,13 +199,14 @@ public class TransactionJournal {
             SharedPreferences pref = MyApplication.app.getSharedPreferences(
                     PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
             String json = pref.getString("pending_reversals", "[]");
-            
+
             if (json == null || json.isEmpty()) {
                 return new ArrayList<>();
             }
-            
+
             Gson gson = new Gson();
-            Type type = new TypeToken<List<TransactionRecord>>(){}.getType();
+            Type type = new TypeToken<List<TransactionRecord>>() {
+            }.getType();
             List<TransactionRecord> reversals = gson.fromJson(json, type);
             return reversals != null ? reversals : new ArrayList<>();
         } catch (Exception e) {
@@ -213,7 +214,7 @@ public class TransactionJournal {
             return new ArrayList<>();
         }
     }
-    
+
     /**
      * Remove pending reversal (after successful retry)
      */
@@ -227,7 +228,7 @@ public class TransactionJournal {
             LogUtil.e(TAG, "Error removing pending reversal: " + e.getMessage());
         }
     }
-    
+
     /**
      * Load journal from SharedPreferences
      */
@@ -236,13 +237,14 @@ public class TransactionJournal {
             SharedPreferences pref = MyApplication.app.getSharedPreferences(
                     PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
             String json = pref.getString(KEY_TRANSACTION_JOURNAL, "[]");
-            
+
             if (json == null || json.isEmpty()) {
                 return new ArrayList<>();
             }
-            
+
             Gson gson = new Gson();
-            Type type = new TypeToken<List<TransactionRecord>>(){}.getType();
+            Type type = new TypeToken<List<TransactionRecord>>() {
+            }.getType();
             List<TransactionRecord> journal = gson.fromJson(json, type);
             return journal != null ? journal : new ArrayList<>();
         } catch (Exception e) {
@@ -250,7 +252,7 @@ public class TransactionJournal {
             return new ArrayList<>();
         }
     }
-    
+
     /**
      * Save journal to SharedPreferences
      */
@@ -258,7 +260,7 @@ public class TransactionJournal {
         try {
             Gson gson = new Gson();
             String json = gson.toJson(journal);
-            
+
             SharedPreferences pref = MyApplication.app.getSharedPreferences(
                     PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
             pref.edit().putString(KEY_TRANSACTION_JOURNAL, json).apply();
@@ -266,7 +268,7 @@ public class TransactionJournal {
             LogUtil.e(TAG, "Error saving transaction journal: " + e.getMessage());
         }
     }
-    
+
     /**
      * Save pending reversals to SharedPreferences
      */
@@ -274,7 +276,7 @@ public class TransactionJournal {
         try {
             Gson gson = new Gson();
             String json = gson.toJson(reversals);
-            
+
             SharedPreferences pref = MyApplication.app.getSharedPreferences(
                     PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
             pref.edit().putString("pending_reversals", json).apply();
@@ -282,7 +284,7 @@ public class TransactionJournal {
             LogUtil.e(TAG, "Error saving pending reversals: " + e.getMessage());
         }
     }
-    
+
     /**
      * Clear journal (for testing/admin)
      */
@@ -299,4 +301,3 @@ public class TransactionJournal {
         }
     }
 }
-

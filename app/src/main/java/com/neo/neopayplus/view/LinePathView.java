@@ -14,7 +14,6 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
-
 /**
  * 绘制Path的View 用于签名
  */
@@ -51,7 +50,6 @@ public class LinePathView extends View {
      */
     private boolean isTouched = false;
 
-
     /**
      * 画笔宽度 px；
      */
@@ -60,11 +58,11 @@ public class LinePathView extends View {
     /**
      * 前景色
      */
-    private int mPenColor = Color.BLACK;
+    private final int mPenColor = Color.BLACK;
     /**
      * 背景色
      */
-    private int mBackColor = Color.TRANSPARENT;
+    private final int mBackColor = Color.TRANSPARENT;
 
     public LinePathView(Context context) {
         super(context);
@@ -86,7 +84,7 @@ public class LinePathView extends View {
         mGesturePaint.setStyle(Style.STROKE);
         mGesturePaint.setStrokeWidth(mPaintWidth);
         mGesturePaint.setColor(mPenColor);
-        setPaintWidth(10);//设置画笔宽度 默认宽度为10px
+        setPaintWidth(10);// 设置画笔宽度 默认宽度为10px
 
         mTextPaint.setTextSize(60);
         mTextPaint.setAntiAlias(true);
@@ -94,7 +92,6 @@ public class LinePathView extends View {
         mTextPaint.setStrokeWidth(2);
         mTextPaint.setColor(mPenColor);
     }
-
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -110,7 +107,8 @@ public class LinePathView extends View {
         cacheCanvas = new Canvas(cacheBitmap);
         if (!TextUtils.isEmpty(transFeatureCode)) {
             float fontWidth = mTextPaint.measureText(transFeatureCode);
-            cacheCanvas.drawText(transFeatureCode, (cacheCanvas.getWidth() - fontWidth) / 2, cacheCanvas.getHeight() / 2, mTextPaint);
+            cacheCanvas.drawText(transFeatureCode, (cacheCanvas.getWidth() - fontWidth) / 2,
+                    cacheCanvas.getHeight() / 2, mTextPaint);
             transFeatureCode = null;
         }
         isTouched = false;
@@ -135,7 +133,6 @@ public class LinePathView extends View {
         invalidate();
         return true;
     }
-
 
     // 手指点下屏幕时调用
     private void touchDown(MotionEvent event) {
@@ -185,7 +182,7 @@ public class LinePathView extends View {
             isTouched = false;
             mGesturePaint.setColor(mPenColor);
             cacheBitmap.eraseColor(Color.TRANSPARENT);
-            cacheCanvas.drawColor(mBackColor);  //背景色
+            cacheCanvas.drawColor(mBackColor); // 背景色
             invalidate();
         }
     }
@@ -199,7 +196,8 @@ public class LinePathView extends View {
         this.transFeatureCode = transFeatureCode;
         if (cacheCanvas != null) {
             float fontWidth = mTextPaint.measureText(transFeatureCode);
-            cacheCanvas.drawText(transFeatureCode, (cacheCanvas.getWidth() - fontWidth) / 2, cacheCanvas.getHeight() / 2, mTextPaint);
+            cacheCanvas.drawText(transFeatureCode, (cacheCanvas.getWidth() - fontWidth) / 2,
+                    cacheCanvas.getHeight() / 2, mTextPaint);
             isTouched = false;
             invalidate();
         }
@@ -237,7 +235,7 @@ public class LinePathView extends View {
     public boolean getIsValidSignature() {
         Bitmap bitmap = cacheBitmap;
 
-        int blank = 10;//边距留多少个像素
+        int blank = 10;// 边距留多少个像素
         int HEIGHT = bitmap.getHeight();
         int WIDTH = bitmap.getWidth();
         int top = 0, left = 0, right = 0, bottom = 0;

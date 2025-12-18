@@ -16,17 +16,18 @@ import java.util.Map;
  * Fetches server time for drift detection and receipt timestamps
  */
 public class TimeSync {
-    
+
     private static final String TAG = Constant.TAG;
-    
+
     /**
      * Callback interface for time sync
      */
     public interface OnTime {
         void ok(String isoUtc);
+
         void err(String m);
     }
-    
+
     /**
      * Sync time from server health endpoint
      * 
@@ -36,9 +37,7 @@ public class TimeSync {
         // Use existing PaymentApiService for health check
         // TODO: Add health endpoint to PaymentApiService if not exists
         // For now, we'll use a simple GET request pattern
-        
-        LogUtil.e(TAG, "TimeSync: Fetching server time...");
-        
+
         // If health endpoint exists in PaymentApiService, use it
         // Otherwise, this is a placeholder
         try {
@@ -49,7 +48,7 @@ public class TimeSync {
             callback.err(e.getMessage());
         }
     }
-    
+
     /**
      * Get current time as ISO8601 UTC string
      * 
@@ -59,7 +58,7 @@ public class TimeSync {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
         return sdf.format(new Date());
     }
-    
+
     /**
      * Get current time as local formatted string for receipts
      * 
@@ -69,7 +68,7 @@ public class TimeSync {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
         return sdf.format(new Date());
     }
-    
+
     /**
      * Calculate time drift between server and device
      * 
@@ -88,4 +87,3 @@ public class TimeSync {
         }
     }
 }
-

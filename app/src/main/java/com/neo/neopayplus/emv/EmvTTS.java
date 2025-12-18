@@ -9,6 +9,10 @@ import com.neo.neopayplus.utils.LogUtil;
 
 import java.util.Locale;
 
+/**
+ * Text-to-Speech wrapper for EMV payment prompts.
+ * Provides audio feedback during payment transactions.
+ */
 public final class EmvTTS extends UtteranceProgressListener {
     private static final String TAG = "EmvTTS";
     private TextToSpeech textToSpeech;
@@ -16,7 +20,6 @@ public final class EmvTTS extends UtteranceProgressListener {
     private ITTSProgressListener listener;
 
     private EmvTTS() {
-
     }
 
     public static EmvTTS getInstance() {
@@ -36,7 +39,7 @@ public final class EmvTTS extends UtteranceProgressListener {
     }
 
     public void init() {
-        //初始化TTS对象
+        // Initialize TTS object
         destroy();
         textToSpeech = new TextToSpeech(MyApplication.app, this::onTTSInit);
         textToSpeech.setOnUtteranceProgressListener(this);
@@ -48,11 +51,11 @@ public final class EmvTTS extends UtteranceProgressListener {
 
     public void play(String text, String utteranceId) {
         if (!supportTTS) {
-            Log.e(TAG, "PinPadTTS: play TTS failed, TTS not support...");
+            Log.e(TAG, "EmvTTS: play TTS failed, TTS not support...");
             return;
         }
         if (textToSpeech == null) {
-            Log.e(TAG, "PinPadTTS: play TTS slipped, textToSpeech not init..");
+            Log.e(TAG, "EmvTTS: play TTS skipped, textToSpeech not init..");
             return;
         }
         Log.e(TAG, "play() text: [" + text + "]");
@@ -61,7 +64,7 @@ public final class EmvTTS extends UtteranceProgressListener {
 
     @Override
     public void onStart(String utteranceId) {
-        Log.e(TAG, "播放开始,utteranceId:" + utteranceId);
+        Log.e(TAG, "TTS started, utteranceId:" + utteranceId);
         if (listener != null) {
             listener.onStart(utteranceId);
         }
@@ -69,7 +72,7 @@ public final class EmvTTS extends UtteranceProgressListener {
 
     @Override
     public void onDone(String utteranceId) {
-        Log.e(TAG, "播放结束,utteranceId:" + utteranceId);
+        Log.e(TAG, "TTS done, utteranceId:" + utteranceId);
         if (listener != null) {
             listener.onDone(utteranceId);
         }
@@ -77,7 +80,7 @@ public final class EmvTTS extends UtteranceProgressListener {
 
     @Override
     public void onError(String utteranceId) {
-        Log.e(TAG, "播放出错,utteranceId:" + utteranceId);
+        Log.e(TAG, "TTS error, utteranceId:" + utteranceId);
         if (listener != null) {
             listener.onError(utteranceId);
         }
@@ -85,27 +88,27 @@ public final class EmvTTS extends UtteranceProgressListener {
 
     @Override
     public void onStop(String utteranceId, boolean interrupted) {
-        Log.e(TAG, "播放停止,utteranceId:" + utteranceId + ",interrupted:" + interrupted);
+        Log.e(TAG, "TTS stopped, utteranceId:" + utteranceId + ",interrupted:" + interrupted);
         if (listener != null) {
             listener.onStop(utteranceId, interrupted);
         }
     }
 
-    void stop() {
+    public void stop() {
         if (textToSpeech != null) {
             int code = textToSpeech.stop();
             Log.e(TAG, "tts stop() code:" + code);
         }
     }
 
-    boolean isSpeaking() {
+    public boolean isSpeaking() {
         if (textToSpeech != null) {
             return textToSpeech.isSpeaking();
         }
         return false;
     }
 
-    void destroy() {
+    public void destroy() {
         if (textToSpeech != null) {
             textToSpeech.stop();
             textToSpeech.shutdown();
@@ -113,10 +116,10 @@ public final class EmvTTS extends UtteranceProgressListener {
         }
     }
 
-    /** TTS初始化回调 */
+    /** TTS initialization callback */
     private void onTTSInit(int status) {
         if (status != TextToSpeech.SUCCESS) {
-            LogUtil.e(TAG, "PinPadTTS: init TTS failed, status:" + status);
+            LogUtil.e(TAG, "EmvTTS: init TTS failed, status:" + status);
             supportTTS = false;
             return;
         }
@@ -128,12 +131,12 @@ public final class EmvTTS extends UtteranceProgressListener {
         }
     }
 
-    /** 更新TTS语言 */
+    /** Update TTS language */
     private void updateTtsLanguage() {
         Locale locale = Locale.ENGLISH;
         int result = textToSpeech.setLanguage(locale);
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            supportTTS = false; //系统不支持当前Locale对应的语音播报
+            supportTTS = false;
             LogUtil.e(TAG, "updateTtsLanguage() failed, TTS not support in locale:" + locale);
         } else {
             supportTTS = true;
@@ -141,5 +144,3 @@ public final class EmvTTS extends UtteranceProgressListener {
         }
     }
 }
-
-

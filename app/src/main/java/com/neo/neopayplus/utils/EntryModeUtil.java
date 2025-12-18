@@ -1,11 +1,15 @@
 package com.neo.neopayplus.utils;
 
 import com.sunmi.payservice.AidlConstantsV2;
+import com.sunmi.pay.hardware.aidl.AidlConstants;
+
+import java.util.Locale;
 
 /**
  * Entry Mode Utility
  * 
- * Calculates ISO8583 DE22 (POS Entry Mode) based on card type and PIN entry status
+ * Calculates ISO8583 DE22 (POS Entry Mode) based on card type and PIN entry
+ * status
  * 
  * Common values:
  * - 051 = ICC (Chip), PIN entered
@@ -16,38 +20,38 @@ import com.sunmi.payservice.AidlConstantsV2;
  * - 802 = Magnetic stripe fallback, PIN entered
  */
 public class EntryModeUtil {
-    
+
     /**
      * Returns ISO DE22 (3 digits) as string per entry type
      * 
-     * @param cardType Card type from EMV kernel (see AidlConstantsV2.CardType)
+     * @param cardType   Card type from EMV kernel (see AidlConstants.CardType)
      * @param pinEntered Whether PIN was entered in this transaction
-     * @param fallback Whether magnetic stripe fallback was used
+     * @param fallback   Whether magnetic stripe fallback was used
      * @return 3-digit DE22 string (e.g., "051", "072")
      */
     public static String de22(int cardType, boolean pinEntered, boolean fallback) {
         int posEntry;
-        
+
         if (fallback) {
             // Magnetic stripe fallback
             posEntry = pinEntered ? 802 : 801;
-        } else if (cardType == AidlConstantsV2.CardType.NFC.getValue() || cardType == AidlConstantsV2.CardType.CONTACTLESS.getValue()) {
+        } else if (cardType == AidlConstants.CardType.NFC.getValue()) {
             // Contactless/NFC
             posEntry = pinEntered ? 71 : 72;
         } else {
             // ICC (Chip)
             posEntry = pinEntered ? 51 : 21;
         }
-        
-        return String.format("%03d", posEntry);
+
+        return String.format(Locale.US, "%03d", posEntry);
     }
-    
+
     /**
      * Overload for backward compatibility
      */
     public static String de22(boolean isContactless, boolean pinEntered, boolean fallback) {
         int posEntry;
-        
+
         if (fallback) {
             posEntry = pinEntered ? 802 : 801;
         } else if (isContactless) {
@@ -55,8 +59,7 @@ public class EntryModeUtil {
         } else {
             posEntry = pinEntered ? 51 : 21;
         }
-        
-        return String.format("%03d", posEntry);
+
+        return String.format(Locale.US, "%03d", posEntry);
     }
 }
-

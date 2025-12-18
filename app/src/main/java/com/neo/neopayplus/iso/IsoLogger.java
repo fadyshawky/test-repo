@@ -1,8 +1,7 @@
 package com.neo.neopayplus.iso;
 
 import android.content.Context;
-import android.os.Environment;
-
+import com.neo.neopayplus.BuildConfig;
 import com.neo.neopayplus.Constant;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.utils.LogUtil;
@@ -34,15 +33,28 @@ public class IsoLogger {
     private static final int MAX_LOG_FILES = 100; // Keep last 100 log files
     
     /**
-     * Save ISO8583 frame to disk
+     * Save ISO8583 frame to disk (DEBUG builds only)
+     * 
+     * SECURITY: Only saves files in DEBUG builds to prevent sensitive data leakage
      * 
      * @param isoFrame Raw ISO8583 binary frame
      * @param mti Message Type Indicator (e.g., "0100", "0400")
      * @return File path if successful, null otherwise
      */
     public static String save(byte[] isoFrame, String mti) {
+        // SECURITY: Only save files in DEBUG builds
+        if (!BuildConfig.DEBUG) {
+            return null;
+        }
+        
         if (isoFrame == null || isoFrame.length == 0) {
             LogUtil.e(TAG, "⚠️ Empty ISO frame - skipping save");
+            return null;
+        }
+        
+        // Input validation
+        if (mti == null || mti.trim().isEmpty()) {
+            LogUtil.e(TAG, "⚠️ Invalid MTI - skipping save");
             return null;
         }
         
@@ -105,12 +117,25 @@ public class IsoLogger {
     }
     
     /**
-     * Get last N ISO log entries
+     * Get last N ISO log entries (DEBUG builds only)
+     * 
+     * SECURITY: Only retrieves files in DEBUG builds
      * 
      * @param count Number of entries to retrieve
      * @return List of log file paths (most recent first)
      */
     public static List<String> tail(int count) {
+        // SECURITY: Only retrieve files in DEBUG builds
+        if (!BuildConfig.DEBUG) {
+            return new ArrayList<>();
+        }
+        
+        // Input validation
+        if (count <= 0) {
+            LogUtil.e(TAG, "⚠️ Invalid count - must be > 0");
+            return new ArrayList<>();
+        }
+        
         List<String> logs = new ArrayList<>();
         
         try {
@@ -149,12 +174,25 @@ public class IsoLogger {
     }
     
     /**
-     * Read log file content
+     * Read log file content (DEBUG builds only)
+     * 
+     * SECURITY: Only reads files in DEBUG builds
      * 
      * @param filePath Full path to log file
      * @return Log file content, or null if error
      */
     public static String readLog(String filePath) {
+        // SECURITY: Only read files in DEBUG builds
+        if (!BuildConfig.DEBUG) {
+            return null;
+        }
+        
+        // Input validation
+        if (filePath == null || filePath.trim().isEmpty()) {
+            LogUtil.e(TAG, "⚠️ Invalid file path");
+            return null;
+        }
+        
         try {
             File file = new File(filePath);
             if (!file.exists()) {
@@ -227,11 +265,18 @@ public class IsoLogger {
     }
     
     /**
-     * Clear all log files (for testing/admin)
+     * Clear all log files (DEBUG builds only, for testing/admin)
+     * 
+     * SECURITY: Only clears files in DEBUG builds
      * 
      * @return Number of files deleted
      */
     public static int clearAll() {
+        // SECURITY: Only clear files in DEBUG builds
+        if (!BuildConfig.DEBUG) {
+            return 0;
+        }
+        
         int deleted = 0;
         
         try {

@@ -5,6 +5,8 @@ import android.content.Context;
 import android.view.Gravity;
 import android.widget.ImageView;
 
+import androidx.appcompat.content.res.AppCompatResources;
+
 import androidx.annotation.NonNull;
 
 import com.neo.neopayplus.R;
@@ -22,12 +24,12 @@ public class SwingCardHintDialog extends Dialog {
     private void init() {
         setContentView(R.layout.dialog_swing_card_hint);
         ImageView imgView = findViewById(R.id.src_img);
-        if (dlgType == 0) {//nfc
-            imgView.setImageDrawable(getContext().getDrawable(R.drawable.card_nfc));
-        } else if (dlgType == 1) {//ic
-            imgView.setImageDrawable(getContext().getDrawable(R.drawable.card_ic));
-        } else if (dlgType == 2) {//nfc+ic
-            imgView.setImageDrawable(getContext().getDrawable(R.drawable.card_nfc_ic));
+        if (dlgType == 0) {// nfc
+            imgView.setImageDrawable(AppCompatResources.getDrawable(getContext(), R.drawable.card_nfc));
+        } else if (dlgType == 1) {// ic
+            imgView.setImageDrawable(AppCompatResources.getDrawable(getContext(), R.drawable.card_ic));
+        } else if (dlgType == 2) {// nfc+ic
+            imgView.setImageDrawable(AppCompatResources.getDrawable(getContext(), R.drawable.card_nfc_ic));
         }
         if (getWindow() != null) {
             getWindow().getAttributes().gravity = Gravity.CENTER;
@@ -38,6 +40,5 @@ public class SwingCardHintDialog extends Dialog {
         // 点击返回按钮不取消
         setCancelable(true);
     }
-
 
 }

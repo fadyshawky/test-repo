@@ -787,4 +787,57 @@
     <string name="hce_read_ndef_data">读NDEF数据</string>
     <string name="hce_close">关闭HCE</string>
 
+    <!-- Payment specific strings -->
+    <string name="payment_title">支付交易</string>
+    <string name="transaction_data_backend">发送到后端的交易数据</string>
+    <string name="amount_cents">金额（分）</string>
+    <string name="card_number">卡号</string>
+    <string name="card_type">卡类型</string>
+    <string name="emv_tlv_data">EMV TLV数据</string>
+    <string name="transaction_successful">交易成功！</string>
+    <string name="transaction_failed">交易失败</string>
+    <string name="user_cancelled_pin">用户取消PIN输入</string>
+    <string name="pin_error">PIN错误</string>
+    <string name="emv_initialization_completed">EMV初始化完成</string>
+    <string name="starting_payment_process">开始支付流程</string>
+    <string name="payment_process_completed">支付流程完成</string>
+    <string name="detected_card">检测到 %1$s 卡</string>
+    <string name="enter_amount_start_payment">输入金额并点击确定开始支付</string>
+    <string name="payment_amount">支付金额</string>
+    <string name="transaction_info">交易信息</string>
+    <string name="start_payment">开始支付</string>
+    <string name="confirm_card_number">确认卡号</string>
+    <string name="confirm_certificate">确认证书</string>
+    <string name="please_remove_card">请移除卡片</string>
+    <string name="try_again">重试</string>
+    <string name="please_read_card_again">请再次读取卡片</string>
+    <string name="processing">处理中</string>
+    <string name="please_insert_or_tap_card">请插入或轻触您的卡片</string>
+    <string name="processing_transaction_data">处理交易数据</string>
+    <string name="card_payment">卡片支付</string>
+    <string name="enter_amount">输入金额</string>
+    <string name="continue_btn">继续</string>
+    <string name="initializing">初始化中…</string>
+    <string name="egp_currency">EGP</string>
+    <string name="default_amount">0.00</string>
+    <string name="egp_amount_format">EGP %1$s</string>
+    <string name="loading_iso8583_logs">正在加载ISO8583日志…</string>
+    <string name="waiting_for_card">等待卡片…</string>
+    <string name="contactless_card_detected">检测到非接卡片</string>
+    <string name="chip_card_detected">检测到芯片卡片</string>
+    <string name="application_selected">应用已选择</string>
+    <string name="card_label">卡号: %1$s</string>
+    <string name="reading_card_data">正在读取卡片数据…</string>
+    <string name="signature_required">需要签名</string>
+    <string name="verifying_certificate">正在验证证书…</string>
+    <string name="connecting_to_bank">正在连接银行…</string>
+    <string name="please_present_card_again">请再次出示卡片</string>
+    <string name="enter_pin_amount_verification">输入PIN（金额需要验证）</string>
+    <string name="processing_online_authorization">正在处理在线授权…</string>
+    <string name="back">返回</string>
+    <string name="declined_format">拒绝: %1$s\n代码: %2$d</string>
+    <string name="error_format">错误: %1$s</string>
+    <string name="no_iso8583_logs_found">未找到ISO8583日志文件。\n\n位置: /Android/data/com.neo.neopayplus/files/iso_logs/\n\n日志在以下情况创建:\n- 处理销售交易 (0100)\n- 处理冲正交易 (0400)</string>
+    <string name="error_loading_iso_logs">加载ISO日志错误: %1$s</string>
+
 </resources>

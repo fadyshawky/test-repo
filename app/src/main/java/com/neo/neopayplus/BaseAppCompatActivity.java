@@ -37,19 +37,20 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-//        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         setStatusBarColor(Color.TRANSPARENT);
         MyApplication.initLocaleLanguage();
     }
 
     public void setStatusBarColor(int color) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            Window window = getWindow();
-            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS | WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
-            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            window.setStatusBarColor(color);
-        }
+        // minSdk is 24, so LOLLIPOP check is unnecessary
+        Window window = getWindow();
+        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS
+                | WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.setStatusBarColor(color);
     }
 
     public void initToolbarBringBack() {
@@ -58,8 +59,7 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
         toolbar.setNavigationIcon(R.drawable.ic_back_white);
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(
-                v -> finish()
-        );
+                v -> finish());
     }
 
     public void initToolbarBringBack(int resId) {
@@ -72,14 +72,12 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
         toolbar.setNavigationIcon(R.drawable.ic_back_white);
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(
-                v -> finish()
-        );
+                v -> finish());
     }
 
     public void showToast(int redId) {
         showToastOnUI(getString(redId));
     }
-
 
     public void showToast(String msg) {
         showToastOnUI(msg);
@@ -87,8 +85,7 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
 
     private void showToastOnUI(final String msg) {
         runOnUiThread(
-                () -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-        );
+                () -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show());
     }
 
     public void toastHint(int code) {
@@ -128,8 +125,7 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
                         loadDialog.dismiss();
                     }
                     dlgHandler.removeCallbacksAndMessages(null);
-                }
-        );
+                });
     }
 
     /**
@@ -148,8 +144,7 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
                         return;
                     }
                     swingCardHintDlg.show();
-                }
-        );
+                });
     }
 
     protected void dismissSwingCardHintDialog() {
@@ -158,8 +153,7 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
                     if (swingCardHintDlg != null) {
                         swingCardHintDlg.dismiss();
                     }
-                }
-        );
+                });
     }
 
     protected void addTextViewText(TextView tv, CharSequence msg) {
@@ -191,10 +185,10 @@ public abstract class BaseAppCompatActivity extends AppCompatActivity implements
         openActivityForResult(intent, requestCode);
     }
 
+    @SuppressWarnings("deprecation")
     protected void openActivityForResult(Intent intent, int requestCode) {
         startActivityForResult(intent, requestCode);
     }
-
 
     @Override
     public void onClick(View v) {

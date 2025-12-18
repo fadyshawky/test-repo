@@ -1,29 +1,32 @@
 package com.neo.neopayplus.ui.theme
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import com.neo.neopayplus.ui.theme.NeoColors
+import androidx.compose.ui.graphics.Color
 
-// Dark Fintech Color Scheme
-private val DarkFintechColorScheme = darkColorScheme(
-    primary = NeoColors.AccentLavender,
-    onPrimary = NeoColors.TextPrimary,
-    secondary = NeoColors.MutedLavender,
-    onSecondary = NeoColors.TextPrimary,
-    surface = NeoColors.Surface,
-    onSurface = NeoColors.TextPrimary,
-    background = NeoColors.Background,
-    onBackground = NeoColors.TextPrimary,
-    error = NeoColors.Void,
-    onError = NeoColors.TextPrimary
+private val DarkColors = darkColorScheme(
+    primary = IndigoBlue,
+    onPrimary = White,
+    background = Background,
+    onBackground = IndigoBlue, // Use IndigoBlue for text on dark background
+    surface = Surface,
+    onSurface = MutedLavender, // Use MutedLavender for secondary text
+    secondary = MutedLavender,
+    error = ErrorRed
 )
 
 @Composable
 fun NeoTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DarkFintechColorScheme,
-        typography = Typography,
+        colorScheme = DarkColors,
+        typography = NeoTypography,
+        shapes = Shapes(
+            extraSmall = MaterialTheme.shapes.extraSmall,
+            small = MaterialTheme.shapes.small,
+            medium = MaterialTheme.shapes.medium,
+            large = MaterialTheme.shapes.large,
+            extraLarge = MaterialTheme.shapes.extraLarge
+        ),
         content = content
     )
 }

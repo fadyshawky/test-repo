@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.sunmi.paylib" >
+
+    <uses-sdk
+        android:minSdkVersion="15"
+        android:targetSdkVersion="28" />
+
+    <queries>
+        <package android:name="com.sunmi.pay.hardware_v3" />
+    </queries>
+
+</manifest>

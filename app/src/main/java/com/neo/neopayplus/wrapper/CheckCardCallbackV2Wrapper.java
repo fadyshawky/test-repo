@@ -34,7 +34,20 @@ public class CheckCardCallbackV2Wrapper extends CheckCardCallbackV2.Stub {
 
     @Override
     public void findRFCardEx(Bundle info) throws RemoteException {
-
+        // Default implementation - should be overridden in EmvBridgeImpl
+        // Extract UUID from bundle and call findRFCard
+        if (info != null) {
+            String uuid = info.getString("uuid");
+            if (uuid == null) {
+                uuid = info.getString("cardId");
+            }
+            if (uuid == null) {
+                uuid = "unknown";
+            }
+            findRFCard(uuid);
+        } else {
+            findRFCard("unknown");
+        }
     }
 
     @Override

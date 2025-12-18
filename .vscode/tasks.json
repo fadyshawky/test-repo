@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "gradle",
+			"id": "/Users/fady/Dev/neo/paymentGateway/NeoPayPlusapp:assembleDebugapp",
+			"script": "app:assembleDebug",
+			"description": "Assembles main output for variant debug",
+			"group": "other",
+			"project": "app",
+			"buildFile": "/Users/fady/Dev/neo/paymentGateway/NeoPayPlus/app/build.gradle",
+			"rootProject": "NeoPayPlus",
+			"projectFolder": "/Users/fady/Dev/neo/paymentGateway/NeoPayPlus",
+			"workspaceFolder": "/Users/fady/Dev/neo/paymentGateway/NeoPayPlus",
+			"args": "",
+			"javaDebug": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"label": "gradle: app:assembleDebug"
+		}
+	]
+}

@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    tools:ignore="Overdraw">
+
+    <!-- Amount Entry Screen -->
+    <LinearLayout
+        android:id="@+id/layoutAmountEntry"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:visibility="visible">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvAmountTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enter Amount"
+            android:textColor="#B3B5FF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Amount Display -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/egp_currency"
+                android:textColor="#B3B5FF"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvAmountDisplay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0.00"
+                android:textColor="#FFFFFF"
+                android:textSize="56sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- NumPad -->
+        <GridLayout
+            android:id="@+id/numPad"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:rowCount="4">
+
+            <Button
+                android:id="@+id/btn1"
+                style="@style/NumPadButtonDark"
+                android:text="1" />
+
+            <Button
+                android:id="@+id/btn2"
+                style="@style/NumPadButtonDark"
+                android:text="2" />
+
+            <Button
+                android:id="@+id/btn3"
+                style="@style/NumPadButtonDark"
+                android:text="3" />
+
+            <Button
+                android:id="@+id/btn4"
+                style="@style/NumPadButtonDark"
+                android:text="4" />
+
+            <Button
+                android:id="@+id/btn5"
+                style="@style/NumPadButtonDark"
+                android:text="5" />
+
+            <Button
+                android:id="@+id/btn6"
+                style="@style/NumPadButtonDark"
+                android:text="6" />
+
+            <Button
+                android:id="@+id/btn7"
+                style="@style/NumPadButtonDark"
+                android:text="7" />
+
+            <Button
+                android:id="@+id/btn8"
+                style="@style/NumPadButtonDark"
+                android:text="8" />
+
+            <Button
+                android:id="@+id/btn9"
+                style="@style/NumPadButtonDark"
+                android:text="9" />
+
+            <Button
+                android:id="@+id/btnClear"
+                style="@style/NumPadButtonDark"
+                android:backgroundTint="#4DB8BAFF"
+                android:text="C" />
+
+            <Button
+                android:id="@+id/btn0"
+                style="@style/NumPadButtonDark"
+                android:text="0" />
+
+            <Button
+                android:id="@+id/btnDelete"
+                style="@style/NumPadButtonDark"
+                android:backgroundTint="#4DB8BAFF"
+                android:text="⌫" />
+
+        </GridLayout>
+
+        <!-- Confirm Button -->
+        <Button
+            android:id="@+id/btnConfirmAmount"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="#6666FF"
+            android:text="@string/continue_btn"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:cornerRadius="12dp" />
+
+        <!-- Cancel Button for Amount Entry -->
+        <Button
+            android:id="@+id/btnCancelAmount"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:text="Cancel"
+            android:textAllCaps="false"
+            android:textColor="#B3B5FF"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+    <!-- Card Detection / Processing Screen -->
+    <LinearLayout
+        android:id="@+id/layoutCardProcessing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/payment_title"
+            android:textColor="#B3B5FF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Amount -->
+        <TextView
+            android:id="@+id/tvAmount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/egp_amount_format"
+            android:textColor="#FFFFFF"
+            android:textSize="40sp"
+            android:textStyle="bold" />
+
+        <!-- Center content -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <!-- Card Container -->
+            <LinearLayout
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:background="@drawable/card_container_dark"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <!-- Card Icon -->
+                <ImageView
+                    android:id="@+id/ivCardIcon"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:contentDescription="@string/card_payment"
+                    android:src="@drawable/ic_nfc"
+                    app:tint="#6666FF" />
+
+            </LinearLayout>
+
+            <!-- Status Message -->
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:text="@string/initializing"
+                android:textColor="#B3B5FF"
+                android:textSize="18sp" />
+
+            <!-- Progress Bar -->
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="24dp"
+                android:indeterminateTint="#6666FF"
+                android:visibility="visible" />
+
+        </LinearLayout>
+
+        <!-- Cancel Button -->
+        <Button
+            android:id="@+id/btnCancel"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:backgroundTint="#1E1E1E"
+            android:text="Cancel"
+            android:textAllCaps="false"
+            android:textColor="#B3B5FF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:cornerRadius="12dp"
+            app:strokeColor="#4DB8BAFF"
+            app:strokeWidth="1dp" />
+
+    </LinearLayout>
+
+</FrameLayout>

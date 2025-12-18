@@ -16,11 +16,14 @@
     
     <!-- Android system permissions -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.SET_TIME" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Storage permissions: Required for payment terminal logs and receipt storage.
+         Note: These are deprecated for Android 13+ but still needed for compatibility with older devices
+         and for accessing payment terminal-specific storage locations. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
+    <!-- Required for payment terminal to query installed payment apps and services -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -35,30 +38,103 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="LockedOrientationActivity">
-        <!-- New Compose UI - Main Activity (Launcher) -->
+        <!-- Home Activity - Main entry point (Launcher) -->
         <activity
-            android:name=".MainActivityCompose"
+            android:name=".ui.activities.HomeActivity"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         
-        <!-- Legacy Java UI - kept for reference but not used as launcher -->
+        <!-- Payment Activity - Handles payment and refund flows (OLD - Compose) -->
+        <activity
+            android:name=".ui.activities.PaymentActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- EMV Payment Activity - New EMVHandler integration -->
+        <activity
+            android:name=".ui.activities.EMVPaymentActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme" />
+        
+        <!-- Processing Activity - Shows transaction processing status -->
+        <activity
+            android:name=".ui.activities.ProcessingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- Result Activity - Displays transaction result -->
+        <activity
+            android:name=".ui.activities.ResultActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- Receipt Activity - Displays and prints receipt -->
+        <activity
+            android:name=".ui.activities.ReceiptActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop" />
+        
+        <!-- Reversal Activity - Handles transaction reversals -->
+        <activity
+            android:name=".ui.activities.ReversalActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- Settlement Activity - Batch settlement operations -->
+        <activity
+            android:name=".ui.activities.SettlementActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop" />
+        
+        <!-- History Activity - Transaction history -->
+        <activity
+            android:name=".ui.activities.HistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- Settings Activity - Application settings -->
+        <activity
+            android:name=".ui.activities.SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop" />
+        
+        <!-- Legacy MainActivity - kept for backward compatibility, redirects to HomeActivity -->
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity android:name=".amount.AmountInputActivity" />
-        <activity android:name=".pin.PinInputActivity" />
-        <activity android:name=".processing.ProcessingActivity" />
-        <activity android:name=".data.DataViewActivity" />
-        <activity android:name=".settlement.SettlementActivity" />
-        <activity android:name=".transactions.TransactionHistoryActivity" />
-        <activity android:name=".debug.DebugActivity" />
-        <activity android:name=".emv.VisualImpairmentProcessActivity" />
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- Debug Activity - ISO8583 log viewer (accessible from Settings) -->
+        <activity
+            android:name=".debug.DebugActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+        
+        <!-- EMV L2 Split Library Activity (required if EMV L2 split library is integrated) -->
+        <activity android:name="com.sunmi.emv.l2.view.AppSelectActivity" />
 
     </application>
 

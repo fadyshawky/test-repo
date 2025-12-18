@@ -4,28 +4,32 @@ import com.neo.neopayplus.Constant;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.utils.LogUtil;
 
+import java.util.Locale;
+
 /**
  * Payment Configuration Manager
  * 
  * Centralized configuration for payment-related parameters.
- * These values should be set based on your deployment region and acquirer requirements.
+ * These values should be set based on your deployment region and acquirer
+ * requirements.
  * 
- * SECURITY NOTE: Never hardcode sensitive values like keys or certificates here.
+ * SECURITY NOTE: Never hardcode sensitive values like keys or certificates
+ * here.
  * Sensitive data should be loaded securely from acquirer/payment processor.
  */
 public class PaymentConfig {
-    
+
     private static final String TAG = Constant.TAG;
-    
+
     // ==================== TERMINAL CONFIGURATION ====================
-    
+
     /**
      * Merchant Name
      * Used in setTermParamEx() for terminal configuration
      * TODO: Load from backend/acquirer configuration
      */
     public static final String MERCHANT_NAME = "NeoPayPlus";
-    
+
     /**
      * Terminal ID
      * Format: Up to 8 characters (typically numeric)
@@ -35,7 +39,7 @@ public class PaymentConfig {
      * Falls back to this default if backend unavailable
      */
     public static final String TERMINAL_ID = "00000001";
-    
+
     /**
      * Get current terminal ID (from dynamic config if available, else default)
      */
@@ -45,7 +49,7 @@ public class PaymentConfig {
         }
         return TERMINAL_ID;
     }
-    
+
     /**
      * Merchant ID
      * Format: Up to 15 characters (typically numeric)
@@ -55,7 +59,7 @@ public class PaymentConfig {
      * Falls back to this default if backend unavailable
      */
     public static final String MERCHANT_ID = "00000001";
-    
+
     /**
      * Get current merchant ID (from dynamic config if available, else default)
      */
@@ -65,14 +69,16 @@ public class PaymentConfig {
         }
         return MERCHANT_ID;
     }
-    
+
     /**
      * Terminal Country Code (ISO 3166-1 numeric)
-     * Format: 4-digit string (e.g., "0818" for Egypt, "0156" for China)
-     * This is the EMV tag 9F1A value.
+     * Format: 4-digit BCD string (e.g., "0818" for Egypt 818 decimal in BCD format,
+     * "0156" for China)
+     * This is the EMV tag 9F1A value in BCD format (Sunmi PayLib v2.x uses BCD of
+     * ISO numeric codes).
      */
-    public static final String TERMINAL_COUNTRY_CODE = "0818"; // Egypt
-    
+    public static final String TERMINAL_COUNTRY_CODE = "0818"; // Egypt 818 decimal in BCD format
+
     /**
      * Transaction Currency Code (ISO 4217 numeric)
      * Format: 3-digit string (e.g., "818" for EGP, "156" for CNY)
@@ -82,7 +88,7 @@ public class PaymentConfig {
      * Falls back to this default if backend unavailable
      */
     public static final String CURRENCY_CODE = "818"; // EGP (Egyptian Pound)
-    
+
     /**
      * Get current currency code (from dynamic config if available, else default)
      */
@@ -92,40 +98,69 @@ public class PaymentConfig {
         }
         return CURRENCY_CODE;
     }
-    
+
     /**
-     * Currency Code for EMV TLV (with leading zero if needed)
-     * Format: 4-digit string (e.g., "0818" for EGP, "0156" for CNY)
+     * Currency Code for EMV TLV (BCD format)
+     * Format: 4-digit BCD string (e.g., "0818" for EGP 818 decimal in BCD format,
+     * "0156" for CNY)
+     * This is the EMV tag 5F2A value in BCD format (Sunmi PayLib v2.x uses BCD of
+     * ISO numeric codes).
      */
-    public static final String CURRENCY_CODE_TLV = "0818"; // EGP
-    
+    public static final String CURRENCY_CODE_TLV = "0818"; // EGP 818 decimal in BCD format
+
     /**
      * Currency Code Exponent
-     * Format: 2-digit string (e.g., "00" for currencies with 2 decimal places, "02" for 0 decimal places)
+     * Format: 2-digit string (e.g., "00" for currencies with 2 decimal places, "02"
+     * for 0 decimal places)
      * This is the EMV tag 5F36 value.
      */
     public static final String CURRENCY_EXPONENT = "00"; // EGP has 2 decimal places
-    
+
     /**
      * Currency Display Name
      * Used for UI display purposes
      */
     public static final String CURRENCY_NAME = "EGP";
-    
+
+    /**
+     * Terminal Serial Number (9F1E)
+     * Format: Hex string representation of terminal serial (e.g.,
+     * "50324D494E493031" = "P2MINI01" in ASCII)
+     * This is the EMV tag 9F1E value (IFD Serial Number).
+     * 
+     * Example: "50324D494E493031" represents "P2MINI01" in hex
+     * Adjust this value based on your actual terminal serial number
+     */
+    public static final String TERMINAL_SERIAL_9F1E = "50324D494E493031"; // "P2MINI01" in hex - adjust for your
+                                                                          // terminal
+
+    /**
+     * TTQ (Terminal Transaction Qualifiers) - 9F66
+     * Format: 4-byte hex string (e.g., "36A0C000")
+     * This is the EMV tag 9F66 value.
+     * 
+     * Byte 1: Contactless transaction support
+     * Byte 2: CVM capabilities
+     * Byte 3: Security capabilities
+     * Byte 4: Reserved
+     * 
+     * Current: "36A0C000" - supports contactless, online PIN, offline PIN, CDCVM
+     */
+    public static final String TTQ_9F66 = "36A0C000";
+
     /**
      * Terminal Type
-     * Format: 2-digit hex string (e.g., "22" = attended POS with contactless)
+     * Format: 2-digit hex string (e.g., "21" = attended POS without contactless)
      * This is the EMV tag 9F35 value.
      * 
      * Common values:
-     * - 22: Attended POS with contactless
      * - 21: Attended POS without contactless
      * - 42: Unattended POS with contactless
      */
-    public static final String TERMINAL_TYPE = "22"; // Attended POS with contactless
-    
+    public static final String TERMINAL_TYPE = "21"; // Attended POS with contactless
+
     // ==================== TERMINAL CAPABILITIES ====================
-    
+
     /**
      * Terminal Capabilities (9F33)
      * Format: 6-digit hex string
@@ -133,7 +168,7 @@ public class PaymentConfig {
      * Byte 2: Cardholder verification methods
      * Byte 3: Cardholder verification methods (continued)
      * 
-     * Current: "E0F8C8" - supports Online PIN, Offline PIN, CDCVM, contactless
+     * Current: "60F8C8" - supports Online PIN, Offline PIN, CDCVM, contactless
      * 
      * Byte 2 breakdown (F8 = 11111000):
      * - Bit 3 = 1: Online PIN supported
@@ -146,8 +181,8 @@ public class PaymentConfig {
      * and transaction conditions. We don't force a preference - we let the card's
      * CVM List and conditions determine which CVM is used.
      */
-    public static final String TERMINAL_CAPABILITIES = "E0F8C8";
-    
+    public static final String TERMINAL_CAPABILITIES = "60F8C8";
+
     /**
      * Additional Terminal Capabilities (9F40)
      * Format: 10-digit hex string (5 bytes)
@@ -170,7 +205,7 @@ public class PaymentConfig {
      * matching terminal capabilities with card requirements.
      */
     public static final String ADDITIONAL_TERMINAL_CAPABILITIES = "F000F0F001";
-    
+
     /**
      * Transaction Category Code (9F53) for contactless
      * Format: 6-digit hex string
@@ -178,33 +213,74 @@ public class PaymentConfig {
      * Default: "708000" - Contactless transaction category code
      */
     public static final String TRANSACTION_CATEGORY_CODE = "708000";
-    
+
     // ==================== SCHEME-SPECIFIC TLV DATA ====================
-    
+
     /**
      * PayPass (Mastercard) configuration values
+     * 
+     * CVM Limit Tags (12-digit BCD, 2 decimal places):
+     * - DF8123: Reader Contactless Floor Limit (offline floor)
+     * - DF8124: Reader CVM Required Limit (PIN required ABOVE this amount)
+     * - DF8125: Reader Contactless Transaction Limit (max contactless amount)
+     * - DF8126: Reader Contactless Floor Limit (for online auth)
+     * 
+     * Example: 600.00 EGP = 60000 minor units = "000000060000"
      */
     public static class PayPassConfig {
+        // DF8117: Card Data Input Capability
         public static final String DF8117 = "E0";
+        // DF8118: CVM Capability - CVM Required (when amount >= CVM limit)
+        // F8 = Online PIN, Signature, Offline PIN supported
         public static final String DF8118 = "F8";
+        // DF8119: CVM Capability - No CVM Required (when amount < CVM limit)
+        // Bit structure: b8=Online PIN, b7=Signature, b6=Offline PIN Plain, b5=Offline
+        // PIN Enc, b2=No CVM
+        //
+        // NOTE: Setting to "02" (only No CVM) causes -4125 error for CVM-required
+        // transactions!
+        // The PayPass kernel seems to check this even for CVM-required transactions.
+        //
+        // Setting to "F8" means terminal advertises full CVM support (including Online
+        // PIN),
+        // which may cause some cards to request PIN even for low amounts (card issuer
+        // policy).
+        // This is the safest value to avoid transaction failures.
         public static final String DF8119 = "F8";
+        // DF811F: Security Capability
         public static final String DF811F = "E8";
         public static final String DF811E = "00";
         public static final String DF812C = "00";
-        public static final String DF8123 = "000000000000";
-        public static final String DF8124 = "000000100000";
-        public static final String DF8125 = "999999999999";
-        public static final String DF8126 = "000000100000";
+        // Reader Contactless Floor Limit (DF8123) - offline floor limit
+        public static final String DF8123 = "000000059999"; // 599.99 EGP
+        // Reader CVM Required Limit (DF8124) - PIN required for amounts ABOVE this
+        // value
+        // PayPass kernel uses "amount > limit" comparison
+        // Set to 599.99 to ensure PIN is required starting at exactly 600.00 EGP
+        // Transactions <= 599.99 EGP: No PIN (tap & go)
+        // Transactions >= 600.00 EGP: PIN required
+        public static final String DF8124 = "000000059999"; // 599.99 EGP threshold
+        // Reader Contactless Transaction Limit (DF8125) - max contactless amount
+        public static final String DF8125 = "000100000000"; // 1,000,000.00 EGP max
+        // Reader Contactless Floor Limit (DF8126) - for online authorization
+        public static final String DF8126 = "000000059999"; // 599.99 EGP
         public static final String DF811B = "30";
         public static final String DF811D = "02";
         public static final String DF8122 = "0000000000";
         public static final String DF8120 = "000000000000";
         public static final String DF8121 = "000000000000";
     }
-    
+
     /**
      * PayWave (Visa) configuration values
-     * (Same as PayPass for standard configuration)
+     * 
+     * CVM Limit Tags (12-digit BCD, 2 decimal places):
+     * - DF8123: Reader Contactless Floor Limit (offline floor)
+     * - DF8124: Reader CVM Required Limit (PIN required ABOVE this amount)
+     * - DF8125: Reader Contactless Transaction Limit (max contactless amount)
+     * - DF8126: Reader Contactless Floor Limit (for online auth)
+     * 
+     * Example: 600.00 EGP = 60000 minor units = "000000060000"
      */
     public static class PayWaveConfig {
         public static final String DF8117 = "E0";
@@ -213,31 +289,40 @@ public class PaymentConfig {
         public static final String DF811F = "E8";
         public static final String DF811E = "00";
         public static final String DF812C = "00";
-        public static final String DF8123 = "000000000000";
-        public static final String DF8124 = "000000100000";
-        public static final String DF8125 = "999999999999";
-        public static final String DF8126 = "000000100000";
+        // Reader Contactless Floor Limit (DF8123) - offline floor limit
+        public static final String DF8123 = "000000059999"; // 599.99 EGP
+        // Reader CVM Required Limit (DF8124) - PIN required for amounts ABOVE this
+        // value
+        // PayWave kernel uses "amount > limit" comparison
+        // Set to 599.99 to ensure PIN is required starting at exactly 600.00 EGP
+        // Transactions <= 599.99 EGP: No PIN (tap & go)
+        // Transactions >= 600.00 EGP: PIN required
+        public static final String DF8124 = "000000059999"; // 599.99 EGP threshold
+        // Reader Contactless Transaction Limit (DF8125) - max contactless amount
+        public static final String DF8125 = "000100000000"; // 1,000,000.00 EGP max
+        // Reader Contactless Floor Limit (DF8126) - for online authorization
+        public static final String DF8126 = "000000059999"; // 599.99 EGP
         public static final String DF811B = "30";
         public static final String DF811D = "02";
         public static final String DF8122 = "0000000000";
         public static final String DF8120 = "000000000000";
         public static final String DF8121 = "000000000000";
     }
-    
+
     /**
      * AMEX (American Express) configuration values
      */
     public static class AmexConfig {
         public static final String TAG_9F6D = "C0";
         public static final String TAG_9F6E = "D8E00000";
-        public static final String TAG_9F33 = "E0E888";
-        public static final String TAG_9F35 = "22";
+        public static final String TAG_9F33 = "60F8C8";
+        public static final String TAG_9F35 = "21";
         public static final String DF8168 = "00";
         public static final String DF8167 = "00";
         public static final String DF8169 = "00";
         public static final String DF8170 = "60";
     }
-    
+
     /**
      * JCB configuration values
      */
@@ -245,9 +330,9 @@ public class PaymentConfig {
         public static final String TAG_9F53 = "708000";
         public static final String DF8161 = "7F00";
     }
-    
+
     // ==================== AID CONFIGURATION ====================
-    
+
     /**
      * TAC (Terminal Action Code) values for AID configuration
      */
@@ -257,64 +342,64 @@ public class PaymentConfig {
          * Format: 4-byte hex string
          */
         public static final String TAC_DEFAULT_ONLINE_PREFERRED = "DC4000A800";
-        
+
         /**
          * TAC Denial - Deny offline when possible
          * Format: 4-byte hex string
          */
         public static final String TAC_DENIAL = "0010000000";
-        
+
         /**
          * TAC Online - Online PIN required
          * Format: 4-byte hex string
          */
         public static final String TAC_ONLINE_PIN_REQUIRED = "DC4004F800";
-        
+
         /**
          * Threshold - No threshold (force online decision)
          * Format: 6-byte hex string
          */
         public static final String THRESHOLD_ZERO = "000000000000";
-        
+
         /**
          * Floor Limit - Force online for all amounts
          * Format: 6-byte hex string
          */
         public static final String FLOOR_LIMIT_ZERO = "000000000000";
     }
-    
+
     // ==================== KEY MODEL ====================
-    
+
     /**
      * Key Management Model
      * Controls whether POS uses DUKPT or Master/Session (TMK→TPK/TAK) key model
      */
     public enum KeyModel {
         DUKPT,
-        MASTER_SESSION   // TMK → TPK/TAK session keys
+        MASTER_SESSION // TMK → TPK/TAK session keys
     }
-    
+
     /**
      * Active Key Model (default: MASTER_SESSION for production)
      */
-    private static KeyModel KEY_MODEL = KeyModel.MASTER_SESSION;
-    
+    private static final KeyModel KEY_MODEL = KeyModel.MASTER_SESSION;
+
     /**
      * Get current key model
      */
     public static KeyModel getKeyModel() {
         return KEY_MODEL;
     }
-    
+
     /**
      * Check if using Master/Session key model
      */
     public static boolean isMasterSession() {
         return KEY_MODEL == KeyModel.MASTER_SESSION;
     }
-    
+
     // ==================== VALIDATION ====================
-    
+
     /**
      * Validate configuration values
      * 
@@ -322,47 +407,48 @@ public class PaymentConfig {
      */
     public static boolean validate() {
         boolean valid = true;
-        
+
         if (TERMINAL_COUNTRY_CODE == null || TERMINAL_COUNTRY_CODE.length() != 4) {
             LogUtil.e(TAG, "⚠️ Invalid TERMINAL_COUNTRY_CODE: " + TERMINAL_COUNTRY_CODE);
             valid = false;
         }
-        
+
         if (CURRENCY_CODE == null || CURRENCY_CODE.length() != 3) {
             LogUtil.e(TAG, "⚠️ Invalid CURRENCY_CODE: " + CURRENCY_CODE);
             valid = false;
         }
-        
+
         if (CURRENCY_CODE_TLV == null || CURRENCY_CODE_TLV.length() != 4) {
             LogUtil.e(TAG, "⚠️ Invalid CURRENCY_CODE_TLV: " + CURRENCY_CODE_TLV);
             valid = false;
         }
-        
+
         if (TERMINAL_TYPE == null || TERMINAL_TYPE.length() != 2) {
             LogUtil.e(TAG, "⚠️ Invalid TERMINAL_TYPE: " + TERMINAL_TYPE);
             valid = false;
         }
-        
+
         if (!valid) {
             LogUtil.e(TAG, "⚠️ Configuration validation failed - please check PaymentConfig values");
         } else {
             LogUtil.e(TAG, "✓ Configuration validated successfully");
-            LogUtil.e(TAG, "  Country: " + TERMINAL_COUNTRY_CODE + ", Currency: " + CURRENCY_CODE + " (" + CURRENCY_NAME + ")");
+            LogUtil.e(TAG, "  Country: " + TERMINAL_COUNTRY_CODE + ", Currency: " + CURRENCY_CODE + " (" + CURRENCY_NAME
+                    + ")");
         }
-        
+
         return valid;
     }
-    
+
     /**
      * Get formatted currency display string
      * 
-     * @param amount Amount to format (in smallest currency unit, e.g., piasters for EGP)
+     * @param amount Amount to format (in smallest currency unit, e.g., piasters for
+     *               EGP)
      * @return Formatted string (e.g., "100 EGP")
      */
     public static String formatCurrency(long amount) {
         // Convert from smallest unit (piasters) to main unit (pounds) for display
         double mainUnit = amount / 100.0;
-        return String.format("%.2f %s", mainUnit, CURRENCY_NAME);
+        return String.format(Locale.US, "%.2f %s", mainUnit, CURRENCY_NAME);
     }
 }
-

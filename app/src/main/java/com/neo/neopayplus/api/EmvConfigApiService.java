@@ -20,20 +20,35 @@ public interface EmvConfigApiService {
     class AidConfig {
         public String aidHex;          // AID in hex string format
         public String label;           // AID label (e.g., "VISA CREDIT", "MASTERCARD PAYPASS") - optional
+        public String kernel;          // Kernel type: "EMV", "PAYPASS", "PAYWAVE", etc.
         public String tacDefault;      // TAC Default in hex
         public String tacDenial;       // TAC Denial in hex
         public String tacOnline;       // TAC Online in hex
         public String threshold;       // Threshold in hex
-        public String floorLimit;      // Floor Limit in hex
-        public int selFlag;            // Selection flag (0=partial, 1=exact) - defaults to 0 for contactless
+        public String floorLimit;      // Floor Limit in hex (12-digit BCD hex)
+        public int selFlag;            // Selection flag: 0=contact, 1=contactless (CRITICAL for NFC)
+        public int priority;           // AID priority (1=highest)
         public String version;         // AID version (e.g., "008C", required by PayLib v2.0.32)
         public int targetPer;          // Target percentage
         public int maxTargetPer;       // Max target percentage
         
+        // Contactless-specific parameters
+        public String ttq;             // Terminal Transaction Qualifiers (9F66) - 4 bytes hex
+        public String ctq;             // Card Transaction Qualifiers (9F6C) - 2-4 bytes hex
+        public String noCvmLimit;      // No-CVM limit (12-digit BCD hex, e.g., "000000060000" = 600.00)
+        public String cvmLimit;        // CVM required limit (12-digit BCD hex)
+        public String contactlessFloorLimit; // Contactless floor limit (12-digit BCD hex)
+        
+        // DOL fields
+        public String ddol;            // Default DDOL (hex)
+        public String tdol;            // Terminal DOL (hex)
+        public String udol;            // Unpredictable Number DOL (hex)
+        
         @Override
         public String toString() {
             return "AidConfig{aidHex='" + (aidHex != null && aidHex.length() > 10 ? 
-                aidHex.substring(0, 10) + "..." : aidHex) + "'}";
+                aidHex.substring(0, 10) + "..." : aidHex) + 
+                "', selFlag=" + selFlag + ", kernel='" + kernel + "'}";
         }
     }
     

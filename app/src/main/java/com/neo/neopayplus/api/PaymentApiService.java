@@ -1,27 +1,31 @@
 package com.neo.neopayplus.api;
 
+import java.io.IOException;
+
 /**
  * Payment API Service Interface
  * 
  * Defines the contract for backend payment authorization services.
- * This interface allows for easy swapping between mock and production implementations.
+ * This interface allows for easy swapping between mock and production
+ * implementations.
  */
 public interface PaymentApiService {
-    
+
     /**
      * Authorization Request Data
      */
     class AuthorizationRequest {
-        public String field55;           // EMV Field 55 (TLV data)
-        public String pan;               // Primary Account Number (masked)
-        public String amount;            // Transaction amount in smallest currency unit
-        public String currencyCode;      // Currency code (e.g., "818" for EGP)
-        public String transactionType;   // Transaction type (e.g., "00" for purchase)
-        public String date;              // Transaction date (YYMMDD)
-        public String time;              // Transaction time (HHMMSS)
-        public byte[] pinBlock;          // Encrypted PIN block (if online PIN)
-        public String ksn;               // Key Serial Number (for DUKPT)
-        
+        public String field55; // EMV Field 55 (TLV data)
+        public String pan; // Primary Account Number (masked)
+        public String amount; // Transaction amount in smallest currency unit
+        public String currencyCode; // Currency code (e.g., "818" for EGP)
+        public String transactionType; // Transaction type (e.g., "00" for purchase)
+        public String date; // Transaction date (YYMMDD)
+        public String time; // Transaction time (HHMMSS)
+        public byte[] pinBlock; // Encrypted PIN block (if online PIN)
+        public String ksn; // Key Serial Number (for DUKPT)
+        public Integer cardType; // Card type from AidlConstantsV2.CardType (for detecting contactless)
+
         @Override
         public String toString() {
             return "AuthorizationRequest{" +
@@ -35,7 +39,7 @@ public interface PaymentApiService {
                     ", field55Length=" + (field55 != null ? field55.length() : 0) +
                     '}';
         }
-        
+
         private String maskCardNumber(String cardNumber) {
             if (cardNumber == null || cardNumber.length() < 6) {
                 return "****";
@@ -43,20 +47,20 @@ public interface PaymentApiService {
             return cardNumber.substring(0, 4) + "****" + cardNumber.substring(cardNumber.length() - 4);
         }
     }
-    
+
     /**
      * Authorization Response Data
      */
     class AuthorizationResponse {
-        public boolean approved;         // true if transaction approved
-        public String responseCode;      // ISO 8583 response code (e.g., "00" = approved)
-        public String authCode;          // Authorization code
-        public String rrn;               // Retrieval Reference Number
-        public String[] responseTags;    // EMV response tags (for importOnlineProcStatus)
-        public String[] responseValues;  // EMV response values (for importOnlineProcStatus)
-        public String message;           // Response message/description
-        public Throwable error;          // Error if request failed
-        
+        public boolean approved; // true if transaction approved
+        public String responseCode; // ISO 8583 response code (e.g., "00" = approved)
+        public String authCode; // Authorization code
+        public String rrn; // Retrieval Reference Number
+        public String[] responseTags; // EMV response tags (for importOnlineProcStatus)
+        public String[] responseValues; // EMV response values (for importOnlineProcStatus)
+        public String message; // Response message/description
+        public Throwable error; // Error if request failed
+
         public static AuthorizationResponse success(String authCode, String rrn, String[] tags, String[] values) {
             AuthorizationResponse response = new AuthorizationResponse();
             response.approved = true;
@@ -68,7 +72,7 @@ public interface PaymentApiService {
             response.message = "Transaction approved";
             return response;
         }
-        
+
         public static AuthorizationResponse declined(String responseCode, String message) {
             AuthorizationResponse response = new AuthorizationResponse();
             response.approved = false;
@@ -78,7 +82,7 @@ public interface PaymentApiService {
             response.responseValues = new String[0];
             return response;
         }
-        
+
         public static AuthorizationResponse error(Throwable error, String message) {
             AuthorizationResponse response = new AuthorizationResponse();
             response.approved = false;
@@ -89,7 +93,7 @@ public interface PaymentApiService {
             response.responseValues = new String[0];
             return response;
         }
-        
+
         @Override
         public String toString() {
             return "AuthorizationResponse{" +
@@ -102,7 +106,7 @@ public interface PaymentApiService {
                     '}';
         }
     }
-    
+
     /**
      * Callback interface for authorization requests
      */
@@ -113,7 +117,7 @@ public interface PaymentApiService {
          * @param response Authorization response
          */
         void onAuthorizationComplete(AuthorizationResponse response);
-        
+
         /**
          * Called when authorization fails (network error, etc.)
          * 
@@ -121,35 +125,35 @@ public interface PaymentApiService {
          */
         void onAuthorizationError(Throwable error);
     }
-    
+
     /**
      * Request authorization for a transaction
      * 
-     * @param request Authorization request data
+     * @param request  Authorization request data
      * @param callback Callback to receive response
      */
     void authorizeTransaction(AuthorizationRequest request, AuthorizationCallback callback);
-    
+
     /**
      * Check if service is available/configured
      * 
      * @return true if service is ready to process requests
      */
     boolean isAvailable();
-    
+
     /**
      * Key Rotation Request Data
      */
     class KeyRotationRequest {
-        public String terminalId;    // Terminal identifier
-        public String keyType;       // Key type (e.g., "DUKPT")
-        
+        public final String terminalId; // Terminal identifier
+        public final String keyType; // Key type (e.g., "DUKPT")
+
         public KeyRotationRequest(String terminalId, String keyType) {
             this.terminalId = terminalId;
             this.keyType = keyType != null ? keyType : "DUKPT";
         }
     }
-    
+
     /**
      * Key Rotation Response Data
      */
@@ -158,14 +162,14 @@ public interface PaymentApiService {
         public String terminalId;
         public String keyType;
         public int keyIndex;
-        public String ipek;          // Initial PIN Encryption Key (hex)
-        public String ksn;           // Key Serial Number (hex)
+        public String ipek; // Initial PIN Encryption Key (hex)
+        public String ksn; // Key Serial Number (hex)
         public String effectiveDate; // ISO 8601 timestamp
-        public String ciphertext;    // Base64-encoded encrypted key material
+        public String ciphertext; // Base64-encoded encrypted key material
         public String message;
         public Throwable error;
-        
-        public static KeyRotationResponse success(String terminalId, String keyType, 
+
+        public static KeyRotationResponse success(String terminalId, String keyType,
                 int keyIndex, String ipek, String ksn, String effectiveDate, String ciphertext) {
             KeyRotationResponse response = new KeyRotationResponse();
             response.success = true;
@@ -179,7 +183,7 @@ public interface PaymentApiService {
             response.message = "Key rotation successful";
             return response;
         }
-        
+
         public static KeyRotationResponse error(Throwable error, String message) {
             KeyRotationResponse response = new KeyRotationResponse();
             response.success = false;
@@ -188,7 +192,7 @@ public interface PaymentApiService {
             return response;
         }
     }
-    
+
     /**
      * Callback interface for key rotation requests
      */
@@ -199,7 +203,7 @@ public interface PaymentApiService {
          * @param response Key rotation response with new keys
          */
         void onKeyRotationComplete(KeyRotationResponse response);
-        
+
         /**
          * Called when key rotation fails
          * 
@@ -207,15 +211,63 @@ public interface PaymentApiService {
          */
         void onKeyRotationError(Throwable error);
     }
-    
+
     /**
      * Request key rotation from backend
      * 
-     * @param request Key rotation request data
+     * @param request  Key rotation request data
      * @param callback Callback to receive response
      */
     void rotateKeys(KeyRotationRequest request, KeyRotationCallback callback);
-    
+
+    /**
+     * Terminal public-key registration (RSA) for TMK provisioning.
+     */
+    class TerminalRegisterRequest {
+        public String terminalId;
+        public String publicKeyPem;
+    }
+
+    class TerminalRegisterResponse {
+        public boolean success;
+        public String terminalId;
+        public String message;
+    }
+
+    TerminalRegisterResponse registerTerminalKeySync(TerminalRegisterRequest request) throws IOException;
+
+    class TmkProvisionRequest {
+        public String terminalId;
+    }
+
+    class TmkProvisionResponse {
+        public boolean success;
+        public String terminalId;
+        public String wrappedTmk;
+        public String kcv;
+        public String tmkKcv; // Backend returns KCV as tmkKcv
+        public String message;
+    }
+
+    TmkProvisionResponse provisionTmkSync(TmkProvisionRequest request) throws IOException;
+
+    class TpkProvisionRequest {
+        public String terminalId;
+    }
+
+    class TpkProvisionResponse {
+        public boolean success;
+        public String terminalId;
+        public String wrappedTpk;
+        public String tpkKcv;
+        public String takKcv;
+        public String wrappedTak;
+        public String pinKeyId;
+        public String message;
+    }
+
+    TpkProvisionResponse provisionTpkSync(TpkProvisionRequest request) throws IOException;
+
     /**
      * DUKPT Keys Response Data (for initial key fetch at startup)
      * Reuses same structure as KeyRotationResponse since data is identical
@@ -225,14 +277,14 @@ public interface PaymentApiService {
         public String terminalId;
         public String keyType;
         public int keyIndex;
-        public String ipek;          // Initial PIN Encryption Key (hex)
-        public String ksn;           // Key Serial Number (hex)
+        public String ipek; // Initial PIN Encryption Key (hex)
+        public String ksn; // Key Serial Number (hex)
         public String effectiveDate; // ISO 8601 timestamp
-        public String ciphertext;    // Base64-encoded encrypted key material (optional)
+        public String ciphertext; // Base64-encoded encrypted key material (optional)
         public String message;
         public Throwable error;
-        
-        public static DukptKeysResponse success(String terminalId, String keyType, 
+
+        public static DukptKeysResponse success(String terminalId, String keyType,
                 int keyIndex, String ipek, String ksn, String effectiveDate, String ciphertext) {
             DukptKeysResponse response = new DukptKeysResponse();
             response.success = true;
@@ -246,7 +298,7 @@ public interface PaymentApiService {
             response.message = "DUKPT keys fetched successfully";
             return response;
         }
-        
+
         public static DukptKeysResponse error(Throwable error, String message) {
             DukptKeysResponse response = new DukptKeysResponse();
             response.success = false;
@@ -255,7 +307,7 @@ public interface PaymentApiService {
             return response;
         }
     }
-    
+
     /**
      * Callback interface for DUKPT keys fetch requests
      */
@@ -266,7 +318,7 @@ public interface PaymentApiService {
          * @param response DUKPT keys response with IPEK and KSN
          */
         void onDukptKeysComplete(DukptKeysResponse response);
-        
+
         /**
          * Called when DUKPT keys fetch fails
          * 
@@ -274,27 +326,27 @@ public interface PaymentApiService {
          */
         void onDukptKeysError(Throwable error);
     }
-    
+
     /**
      * Fetch initial DUKPT keys from backend at terminal startup
      * This is called once at boot to initialize DUKPT keys (IPEK + KSN)
      * 
      * @param terminalId Terminal identifier
-     * @param callback Callback to receive response
+     * @param callback   Callback to receive response
      */
     void getDukptKeys(String terminalId, DukptKeysCallback callback);
-    
+
     /**
      * Reversal Request Data
      */
     class ReversalRequest {
         public String terminalId;
         public String merchantId;
-        public String rrn;               // Retrieval Reference Number to reverse
-        public String amount;            // Original transaction amount
-        public String currencyCode;      // Currency code (e.g., "818" for EGP)
-        public String reversalReason;    // Reason for reversal (e.g., "HOST_TIMEOUT", "USER_REQUEST")
-        
+        public String rrn; // Retrieval Reference Number to reverse
+        public String amount; // Original transaction amount
+        public String currencyCode; // Currency code (e.g., "818" for EGP)
+        public String reversalReason; // Reason for reversal (e.g., "HOST_TIMEOUT", "USER_REQUEST")
+
         @Override
         public String toString() {
             return "ReversalRequest{" +
@@ -305,16 +357,16 @@ public interface PaymentApiService {
                     '}';
         }
     }
-    
+
     /**
      * Reversal Response Data
      */
     class ReversalResponse {
-        public boolean approved;         // true if reversal approved
-        public String responseCode;      // ISO 8583 response code (e.g., "00" = approved)
-        public String responseMessage;   // Response message/description
-        public Throwable error;          // Error if request failed
-        
+        public boolean approved; // true if reversal approved
+        public String responseCode; // ISO 8583 response code (e.g., "00" = approved)
+        public String responseMessage; // Response message/description
+        public Throwable error; // Error if request failed
+
         public static ReversalResponse success(String responseCode, String message) {
             ReversalResponse response = new ReversalResponse();
             response.approved = true;
@@ -322,7 +374,7 @@ public interface PaymentApiService {
             response.responseMessage = message;
             return response;
         }
-        
+
         public static ReversalResponse declined(String responseCode, String message) {
             ReversalResponse response = new ReversalResponse();
             response.approved = false;
@@ -330,7 +382,7 @@ public interface PaymentApiService {
             response.responseMessage = message;
             return response;
         }
-        
+
         public static ReversalResponse error(Throwable error, String message) {
             ReversalResponse response = new ReversalResponse();
             response.approved = false;
@@ -339,7 +391,7 @@ public interface PaymentApiService {
             return response;
         }
     }
-    
+
     /**
      * Callback interface for reversal requests
      */
@@ -350,7 +402,7 @@ public interface PaymentApiService {
          * @param response Reversal response with approval/decline status
          */
         void onReversalComplete(ReversalResponse response);
-        
+
         /**
          * Called when reversal fails (network error, timeout, etc.)
          * 
@@ -358,37 +410,37 @@ public interface PaymentApiService {
          */
         void onReversalError(Throwable error);
     }
-    
+
     /**
      * Reverse a transaction
      * 
-     * @param request Reversal request with RRN and transaction details
+     * @param request  Reversal request with RRN and transaction details
      * @param callback Callback to receive response
      */
     void reverseTransaction(ReversalRequest request, ReversalCallback callback);
-    
+
     /**
      * Key Announce Request Data
      */
     class KeyAnnounceRequest {
         public String terminalId;
-        public String kbPosB64;        // TR-31 key block under Terminal TMK (Base64)
-        public String kcv;            // Key Check Value (hex)
-        public int pinKeySetHint;      // Optional logical set hint
-        public String prevPinKeyId;    // Optional previous key ID
+        public String kbPosB64; // TR-31 key block under Terminal TMK (Base64)
+        public String kcv; // Key Check Value (hex)
+        public int pinKeySetHint; // Optional logical set hint
+        public String prevPinKeyId; // Optional previous key ID
     }
-    
+
     /**
      * Key Announce Response Data
      */
     class KeyAnnounceResponse {
         public boolean success;
-        public String pinKeyId;        // Server-issued PIN key ID
-        public int pinKeySet;          // Key set ID
-        public int pinKeyVer;          // Key version
+        public String pinKeyId; // Server-issued PIN key ID
+        public int pinKeySet; // Key set ID
+        public int pinKeyVer; // Key version
         public String message;
         public Throwable error;
-        
+
         public static KeyAnnounceResponse success(String pinKeyId, int setId, int verId) {
             KeyAnnounceResponse response = new KeyAnnounceResponse();
             response.success = true;
@@ -398,7 +450,7 @@ public interface PaymentApiService {
             response.message = "Key announced successfully";
             return response;
         }
-        
+
         public static KeyAnnounceResponse error(Throwable error, String message) {
             KeyAnnounceResponse response = new KeyAnnounceResponse();
             response.success = false;
@@ -407,7 +459,7 @@ public interface PaymentApiService {
             return response;
         }
     }
-    
+
     /**
      * Callback interface for key announcement requests
      */
@@ -418,7 +470,7 @@ public interface PaymentApiService {
          * @param response Key announcement response with pin_key_id
          */
         void onKeyAnnounceComplete(KeyAnnounceResponse response);
-        
+
         /**
          * Called when key announcement fails
          * 
@@ -426,14 +478,13 @@ public interface PaymentApiService {
          */
         void onKeyAnnounceError(Throwable error);
     }
-    
+
     /**
      * Announce TPK (Transaction PIN Key) to backend
      * Backend will rewrap under Bank TMK and return pin_key_id
      * 
-     * @param request Key announcement request with TR-31 key block
+     * @param request  Key announcement request with TR-31 key block
      * @param callback Callback to receive response
      */
     void announceKey(KeyAnnounceRequest request, KeyAnnounceCallback callback);
 }
-

@@ -35,7 +35,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
     private static final String TAG = Constant.TAG;
     
     // API routes/endpoints
-    private static final String ROUTE_SETTLEMENT_UPLOAD = "/settlement/upload";
+    private static final String ROUTE_SETTLEMENT_UPLOAD = "/tx/settlement";
     
     private static final MediaType JSON = MediaType.parse("application/json");
     
@@ -59,10 +59,10 @@ public class SettlementApiServiceImpl implements SettlementApiService {
      * If baseUrl is null or placeholder, uses mock responses
      * 
      * @param baseUrl Backend base URL (e.g., "http://192.168.100.176:8080/v1")
-     * @param apiKey API key for authentication
+     * @param apiKey  API key for authentication
      */
     public SettlementApiServiceImpl(String baseUrl, String apiKey) {
-        this.baseUrl = baseUrl;
+        this.baseUrl = normalizeBaseUrl(baseUrl);
         this.apiKey = apiKey;
         
         // Initialize HTTP client only if baseUrl is configured
@@ -74,7 +74,8 @@ public class SettlementApiServiceImpl implements SettlementApiService {
                     .build();
             LogUtil.e(TAG, "Settlement API Service initialized - PRODUCTION mode");
             LogUtil.e(TAG, "  Base URL: " + baseUrl);
-            LogUtil.e(TAG, "  API Key: " + (apiKey != null && !apiKey.isEmpty() ? "***CONFIGURED***" : "NOT CONFIGURED"));
+            LogUtil.e(TAG,
+                    "  API Key: " + (apiKey != null && !apiKey.isEmpty() ? "***CONFIGURED***" : "NOT CONFIGURED"));
         } else {
             this.httpClient = null;
             LogUtil.e(TAG, "Settlement API Service initialized - MOCK mode (baseUrl not configured)");
@@ -88,6 +89,26 @@ public class SettlementApiServiceImpl implements SettlementApiService {
         return baseUrl != null && !baseUrl.isEmpty() && 
                !baseUrl.contains("yourbackend.com") &&
                !baseUrl.equals("https://api.yourbackend.com");
+    }
+
+    private static String normalizeBaseUrl(String raw) {
+        if (raw == null)
+            return null;
+        String trimmed = raw.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    private String buildUrl(String route) {
+        if (baseUrl == null || route == null)
+            return null;
+        String normalizedRoute = route;
+        if (baseUrl.endsWith("/v1") && route.startsWith("/v1")) {
+            normalizedRoute = route.substring(3);
+        }
+        return baseUrl + normalizedRoute;
     }
     
     @Override
@@ -129,7 +150,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
             
             RequestBody requestBody = RequestBody.create(JSON, requestBodyStr);
             
-            String url = baseUrl + ROUTE_SETTLEMENT_UPLOAD;
+            String url = buildUrl(ROUTE_SETTLEMENT_UPLOAD);
             Request httpRequest = new Request.Builder()
                     .url(url)
                     .post(requestBody)
@@ -243,13 +264,16 @@ public class SettlementApiServiceImpl implements SettlementApiService {
                     }
                 }
                 
-                String message = json.has("message") ? json.get("message").getAsString() : "Batch upload completed successfully";
+                String message = json.has("message") ? json.get("message").getAsString()
+                        : "Batch upload completed successfully";
                 
                 LogUtil.e(TAG, "✓ Settlement batch upload successful");
                 LogUtil.e(TAG, "  Batch ID: " + batchId);
-                LogUtil.e(TAG, "  Total: " + totalCount + ", Accepted: " + acceptedCount + ", Rejected: " + rejectedCount);
+                LogUtil.e(TAG,
+                        "  Total: " + totalCount + ", Accepted: " + acceptedCount + ", Rejected: " + rejectedCount);
                 
-                return BatchUploadResponse.success(batchId, totalCount, acceptedCount, rejectedCount, acceptedRrns, rejectedRrns);
+                return BatchUploadResponse.success(batchId, totalCount, acceptedCount, rejectedCount, acceptedRrns,
+                        rejectedRrns);
             } else {
                 String message = json.has("message") ? json.get("message").getAsString() : "Batch upload failed";
                 LogUtil.e(TAG, "❌ Settlement batch upload failed: " + message);
@@ -292,8 +316,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
             
             String batchId = "BATCH-" + System.currentTimeMillis();
             BatchUploadResponse response = BatchUploadResponse.success(
-                batchId, totalCount, acceptedCount, rejectedCount, acceptedRrns, rejectedRrns
-            );
+                    batchId, totalCount, acceptedCount, rejectedCount, acceptedRrns, rejectedRrns);
             
             LogUtil.e(TAG, "✓ Mock settlement batch upload successful");
             LogUtil.e(TAG, "  Batch ID: " + batchId);
@@ -320,4 +343,3 @@ public class SettlementApiServiceImpl implements SettlementApiService {
         return json;
     }
 }
-

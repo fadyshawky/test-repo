@@ -126,6 +126,8 @@ app/build/intermediates/
 
 # Signing files
 signing.properties
+keystore.properties
+app/keystore.properties
 
 # API Keys and secrets (should be in buildConfigField or local.properties)
 **/secrets.properties
@@ -177,3 +179,5 @@ fabric.properties
 *.jar
 # (Keep PayLib-release-2.0.32.aar - it's needed for the project)
 
+docs/
+server/

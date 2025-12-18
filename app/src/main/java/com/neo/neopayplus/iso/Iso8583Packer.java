@@ -18,75 +18,76 @@ import java.util.Locale;
  * - 0400: Reversal Request
  */
 public class Iso8583Packer {
-    
+
     private static final String TAG = Constant.TAG;
-    
+
     /**
      * Pack ISO8583 authorization request (0100)
      * 
-     * @param pan Primary Account Number (masked)
+     * @param pan            Primary Account Number (masked)
      * @param processingCode Processing Code (e.g., "000000" = Purchase)
-     * @param amount Transaction amount (minor currency units, e.g., "1000")
-     * @param stan Systems Trace Audit Number (6 digits, e.g., "123456")
-     * @param posEntryMode POS Entry Mode (3 digits, e.g., "051" = Chip+PIN)
-     * @param currencyCode Currency Code (3 digits, e.g., "818" = EGP)
-     * @param field55 EMV Field 55 (ICC Data) - hex string
-     * @param terminalId Terminal ID
-     * @param merchantId Merchant ID
-     * @param pinBlock PIN block (8 bytes hex string, optional - only for online PIN)
+     * @param amount         Transaction amount (minor currency units, e.g., "1000")
+     * @param stan           Systems Trace Audit Number (6 digits, e.g., "123456")
+     * @param posEntryMode   POS Entry Mode (3 digits, e.g., "051" = Chip+PIN)
+     * @param currencyCode   Currency Code (3 digits, e.g., "818" = EGP)
+     * @param field55        EMV Field 55 (ICC Data) - hex string
+     * @param terminalId     Terminal ID
+     * @param merchantId     Merchant ID
+     * @param pinBlock       PIN block (8 bytes hex string, optional - only for
+     *                       online PIN)
      * @return Raw ISO8583 binary frame (bytes)
      */
-    public static byte[] pack0100(String pan, String processingCode, String amount, 
-                                  String stan, String posEntryMode, String currencyCode,
-                                  String field55, String terminalId, String merchantId, String pinBlock) {
+    public static byte[] pack0100(String pan, String processingCode, String amount,
+            String stan, String posEntryMode, String currencyCode,
+            String field55, String terminalId, String merchantId, String pinBlock) {
         try {
             LogUtil.e(TAG, "=== Packing ISO8583 0100 (Authorization Request) ===");
-            
+
             StringBuilder buffer = new StringBuilder();
-            
+
             // MTI: 0100 = Authorization Request
             buffer.append("0100");
-            
+
             // Primary Bitmap (64 bits, binary)
             // Set bits for fields present: 2, 3, 4, 11, 22, 49, 52 (PIN block), 55
-            int[] fields = {2, 3, 4, 11, 22, 49, 55};
+            int[] fields = { 2, 3, 4, 11, 22, 49, 55 };
             if (pinBlock != null && !pinBlock.isEmpty()) {
                 // Include DE52 (PIN block) if provided
-                fields = new int[]{2, 3, 4, 11, 22, 49, 52, 55};
+                fields = new int[] { 2, 3, 4, 11, 22, 49, 52, 55 };
             }
             String bitmap = buildBitmap(fields);
             buffer.append(bitmap);
-            
+
             // DE2: PAN (Primary Account Number)
             if (pan != null && !pan.isEmpty()) {
                 buffer.append(formatPan(pan));
             }
-            
-            // DE3: Processing Code
+
+            // DE3: Processing Code (numeric, zero-padded to 6 digits)
             if (processingCode != null && !processingCode.isEmpty()) {
-                buffer.append(String.format("%06s", processingCode));
+                buffer.append(zeroPadNumeric(processingCode, 6));
             }
-            
+
             // DE4: Amount, Authorized (12 digits, right-justified, zero-filled)
             if (amount != null && !amount.isEmpty()) {
-                buffer.append(String.format("%012s", amount));
+                buffer.append(zeroPadNumeric(amount, 12));
             }
-            
+
             // DE11: STAN (Systems Trace Audit Number) - 6 digits
             if (stan != null && !stan.isEmpty()) {
-                buffer.append(String.format("%06s", stan));
+                buffer.append(zeroPadNumeric(stan, 6));
             }
-            
+
             // DE22: POS Entry Mode - 3 digits
             if (posEntryMode != null && !posEntryMode.isEmpty()) {
-                buffer.append(String.format("%03s", posEntryMode));
+                buffer.append(zeroPadNumeric(posEntryMode, 3));
             }
-            
+
             // DE49: Currency Code, Transaction - 3 digits
             if (currencyCode != null && !currencyCode.isEmpty()) {
-                buffer.append(String.format("%03s", currencyCode));
+                buffer.append(zeroPadNumeric(currencyCode, 3));
             }
-            
+
             // DE52: PIN Block (8 bytes hex string, only for online PIN)
             if (pinBlock != null && !pinBlock.isEmpty()) {
                 // DE52 format: 8 bytes (16 hex characters)
@@ -97,7 +98,7 @@ public class Iso8583Packer {
                     LogUtil.e(TAG, "⚠️ PIN Block length invalid: " + pinBlock.length() + " (expected 16 hex chars)");
                 }
             }
-            
+
             // DE55: ICC Data (EMV Field 55)
             // Format: LL + hex data (where LL is 2-digit length in hex)
             if (field55 != null && !field55.isEmpty()) {
@@ -109,128 +110,158 @@ public class Iso8583Packer {
                 buffer.append(field55);
                 LogUtil.e(TAG, "✓ DE55 (ICC Data) included - length: " + byteLength + " bytes");
             }
-            
+
             // Convert hex string to bytes
             String hexString = buffer.toString();
             byte[] isoFrame = hexStringToBytes(hexString);
-            
+
             LogUtil.e(TAG, "✓ ISO8583 0100 packed - total length: " + isoFrame.length + " bytes");
             LogUtil.e(TAG, "  Hex: " + hexString.substring(0, Math.min(100, hexString.length())) + "...");
-            
+
             return isoFrame;
-            
+
         } catch (Exception e) {
             com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Packing ISO8583 0100", e);
             return new byte[0];
         }
     }
-    
+
     /**
      * Pack ISO8583 reversal request (0400)
      * 
-     * @param rrn Retrieval Reference Number (12 digits)
-     * @param amount Original transaction amount (minor currency units)
-     * @param stan Systems Trace Audit Number (6 digits)
-     * @param currencyCode Currency Code (3 digits, e.g., "818" = EGP)
-     * @param terminalId Terminal ID
-     * @param merchantId Merchant ID
+     * @param rrn            Retrieval Reference Number (12 digits)
+     * @param amount         Original transaction amount (minor currency units)
+     * @param stan           Systems Trace Audit Number (6 digits)
+     * @param currencyCode   Currency Code (3 digits, e.g., "818" = EGP)
+     * @param terminalId     Terminal ID
+     * @param merchantId     Merchant ID
      * @param reversalReason Reason for reversal (optional)
      * @return Raw ISO8583 binary frame (bytes)
      */
     public static byte[] pack0400(String rrn, String amount, String stan,
-                                 String currencyCode, String terminalId, 
-                                 String merchantId, String reversalReason) {
+            String currencyCode, String terminalId,
+            String merchantId, String reversalReason) {
         try {
             LogUtil.e(TAG, "=== Packing ISO8583 0400 (Reversal Request) ===");
             LogUtil.e(TAG, "  RRN: " + rrn);
-            
+
             StringBuilder buffer = new StringBuilder();
-            
+
             // MTI: 0400 = Reversal Request
             buffer.append("0400");
-            
+
             // Primary Bitmap (64 bits, binary)
             // Set bits for fields present: 2, 3, 4, 11, 22, 37 (RRN), 49
-            String bitmap = buildBitmap(new int[]{2, 3, 4, 11, 22, 37, 49});
+            String bitmap = buildBitmap(new int[] { 2, 3, 4, 11, 22, 37, 49 });
             buffer.append(bitmap);
-            
+
             // DE2: PAN (from original transaction - may be masked)
             // For reversal, we may not have full PAN - use placeholder
             buffer.append("0000000000000000"); // Placeholder PAN
-            
+
             // DE3: Processing Code (000000 = Purchase)
             buffer.append("000000");
-            
+
             // DE4: Amount, Authorized (12 digits, right-justified, zero-filled)
             if (amount != null && !amount.isEmpty()) {
-                buffer.append(String.format("%012s", amount));
+                buffer.append(zeroPadNumeric(amount, 12));
             } else {
                 buffer.append("000000000000");
             }
-            
+
             // DE11: STAN (Systems Trace Audit Number) - 6 digits
             if (stan != null && !stan.isEmpty()) {
-                buffer.append(String.format("%06s", stan));
+                buffer.append(zeroPadNumeric(stan, 6));
             } else {
-                // Generate STAN from current time
+                // Generate STAN from current time (use seconds component)
                 SimpleDateFormat timeFormat = new SimpleDateFormat("HHmmss", Locale.US);
                 String time = timeFormat.format(new Date());
                 String seconds = time.substring(4, 6);
-                buffer.append(String.format("%06s", seconds + "00"));
+                buffer.append(zeroPadNumeric(seconds + "00", 6));
             }
-            
+
             // DE22: POS Entry Mode (default to Chip+PIN: 051)
             buffer.append("051");
-            
+
             // DE37: Retrieval Reference Number (RRN) - 12 digits
             if (rrn != null && !rrn.isEmpty()) {
-                buffer.append(String.format("%012s", rrn));
+                buffer.append(zeroPadNumeric(rrn, 12));
             } else {
                 buffer.append("000000000000");
             }
-            
+
             // DE49: Currency Code, Transaction - 3 digits
             if (currencyCode != null && !currencyCode.isEmpty()) {
-                buffer.append(String.format("%03s", currencyCode));
+                buffer.append(zeroPadNumeric(currencyCode, 3));
             } else {
                 buffer.append("818"); // Default EGP
             }
-            
+
             // Convert hex string to bytes
             String hexString = buffer.toString();
             byte[] isoFrame = hexStringToBytes(hexString);
-            
+
             LogUtil.e(TAG, "✓ ISO8583 0400 packed - total length: " + isoFrame.length + " bytes");
             LogUtil.e(TAG, "  Hex: " + hexString.substring(0, Math.min(100, hexString.length())) + "...");
-            
+
             return isoFrame;
-            
+
         } catch (Exception e) {
             com.neo.neopayplus.utils.ErrorHandler.logError(TAG, "Packing ISO8583 0400", e);
             return new byte[0];
         }
     }
-    
+
+    /**
+     * Zero-pad a numeric string on the left to the given width.
+     * Non-digit characters are stripped; if parsing fails, returns zeros.
+     */
+    private static String zeroPadNumeric(String value, int width) {
+        if (value == null) {
+            return String.format(Locale.US, "%0" + width + "d", 0);
+        }
+
+        String digits = value.replaceAll("\\D", "");
+        if (digits.isEmpty()) {
+            return String.format(Locale.US, "%0" + width + "d", 0);
+        }
+
+        // If longer than width, keep the rightmost digits
+        if (digits.length() > width) {
+            digits = digits.substring(digits.length() - width);
+        }
+
+        long numeric;
+        try {
+            numeric = Long.parseLong(digits);
+        } catch (NumberFormatException e) {
+            numeric = 0L;
+        }
+
+        return String.format(Locale.US, "%0" + width + "d", numeric);
+    }
+
     /**
      * Build primary bitmap (64 bits)
      * 
-     * @param fieldNumbers Array of field numbers present (e.g., [2, 3, 4, 11, 22, 49, 55])
+     * @param fieldNumbers Array of field numbers present (e.g., [2, 3, 4, 11, 22,
+     *                     49, 55])
      * @return Hex string representation of bitmap (16 hex chars = 64 bits)
      */
     private static String buildBitmap(int[] fieldNumbers) {
         long bitmap = 0L;
-        
+
         for (int fieldNum : fieldNumbers) {
             if (fieldNum > 0 && fieldNum <= 64) {
                 // Set bit (fieldNum - 1) to 1 (fields are 1-indexed)
                 bitmap |= (1L << (64 - fieldNum));
             }
         }
-        
+
         // Convert to 16 hex characters (64 bits = 16 hex chars)
         return String.format("%016X", bitmap);
     }
-    
+
     /**
      * Format PAN (Primary Account Number)
      * ISO8583 DE2 format: LL + PAN (where LL is 2-digit length in BCD)
@@ -241,14 +272,14 @@ public class Iso8583Packer {
     private static String formatPan(String pan) {
         // Remove masking characters for packing
         String cleanPan = pan.replaceAll("[*]", "");
-        
+
         // LL format: length in hex (2 digits)
         int length = cleanPan.length();
         String lengthHex = String.format("%02X", length);
-        
+
         return lengthHex + cleanPan;
     }
-    
+
     /**
      * Convert hex string to bytes
      * 
@@ -259,18 +290,18 @@ public class Iso8583Packer {
         try {
             // Remove any whitespace
             hexString = hexString.replaceAll("\\s", "");
-            
+
             // Ensure even length
             if (hexString.length() % 2 != 0) {
                 hexString = "0" + hexString;
             }
-            
+
             byte[] bytes = new byte[hexString.length() / 2];
             for (int i = 0; i < bytes.length; i++) {
                 int index = i * 2;
                 bytes[i] = (byte) Integer.parseInt(hexString.substring(index, index + 2), 16);
             }
-            
+
             return bytes;
         } catch (Exception e) {
             LogUtil.e(TAG, "Error converting hex to bytes: " + e.getMessage());
@@ -278,4 +309,3 @@ public class Iso8583Packer {
         }
     }
 }
-

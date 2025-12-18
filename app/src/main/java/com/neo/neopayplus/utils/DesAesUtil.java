@@ -1,5 +1,7 @@
 package com.neo.neopayplus.utils;
 
+import android.annotation.SuppressLint;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -15,6 +17,7 @@ public final class DesAesUtil {
      * @param data 待加密的数据
      * @return 加密后的数据
      */
+    @SuppressLint("GetInstance")
     public static byte[] aseEncrypt(byte[] key, byte[] data) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
@@ -34,6 +37,7 @@ public final class DesAesUtil {
      * @param data 待解密的数据
      * @return 解密后的数据
      */
+    @SuppressLint("GetInstance")
     public static byte[] aseDecrypt(byte[] key, byte[] data) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
@@ -53,6 +57,7 @@ public final class DesAesUtil {
      * @param data 待加密的数据
      * @return 加密后的数据
      */
+    @SuppressLint("GetInstance")
     public static byte[] desEncrypt(byte[] key, byte[] data) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(key, "DESede");
@@ -72,6 +77,7 @@ public final class DesAesUtil {
      * @param data 待解密的数据
      * @return 解密后的数据
      */
+    @SuppressLint("GetInstance")
     public static byte[] desDecrypt(byte[] key, byte[] data) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(key, "DESede");

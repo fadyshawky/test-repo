@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">NeoPayPlus</string>
 
     <string name="ok">OK</string>
@@ -185,7 +185,7 @@
     <string name="card_total">Total：</string>
     <string name="card_success">Pass：</string>
     <string name="card_fail">Fail：</string>
-    <string name="card_track1">Track1：</string>
+    <string name="card_track1" tools:ignore="Typos">Track1：</string>
     <string name="card_track2">Track2：</string>
     <string name="card_track3">Track3：</string>
     <string name="card_preset_track_data">Preset track data</string>
@@ -215,7 +215,7 @@
     <string name="card_key_A">KeyA</string>
     <string name="card_key_B">KeyB</string>
     <string name="card_block_0">Block0</string>
-    <string name="card_block_1">Block1</string>
+    <string name="card_block_1" tools:ignore="Typos">Block1</string>
     <string name="card_block_2">Block2</string>
     <string name="card_balance_symbol">Balance:</string>
     <string name="card_cost">Cost</string>
@@ -364,7 +364,9 @@
     <string name="pin_pad_text_confirm">Confirm</string>
     <string name="pin_pad_text_input_pin">Input PIN</string>
     <string name="pin_pad_text_input_offline_pin">Input Offline PIN</string>
-    <string name="pin_pad_text_reinput_offline_pin_format">Offline PIN is wrong, remaining %d times</string>
+    <!-- Note: This string is used as a format string passed to Sunmi SDK's PinPadTextConfigV2,
+         which expects a single format string. Converting to plurals would require SDK changes. -->
+    <string name="pin_pad_text_reinput_offline_pin_format" tools:ignore="PluralsCandidate">Offline PIN is wrong, remaining %d times</string>
     <string name="pin_anti_exhaustive_mode">PIN anti-exhaustive mode</string>
     <string name="pin_set_anti_exhaustive_mode">set anti-exhaustive mode</string>
     <string name="pin_get_anti_exhaustive_mode">get anti-exhaustive mode</string>
@@ -480,7 +482,7 @@
     <string name="setting_set_pcd_param">Set PCD Param</string>
     <string name="setting_clear_aid">Clear Aid</string>
     <string name="setting_clear_capk">Clear Capk</string>
-    <string name="setting_isolate_m1_cpu">IsolateM1AndCPU</string>
+    <string name="setting_isolate_m1_cpu" tools:ignore="Typos">IsolateM1AndCPU</string>
     <string name="setting_card_poll_interval_time">Card poll interval time</string>
     <string name="setting_get_card_polling_interval_time">Get card poll interval time</string>
     <string name="setting_set_card_polling_interval_time">Set card poll interval time</string>
@@ -538,14 +540,14 @@
     <string name="security_mac_opt_verify">Verify Mac</string>
     <string name="security_mac_calc_type1">MAC_ALG_ISO_9797_1_MAC_ALG1</string>
     <string name="security_mac_calc_type2">MAC_ALG_ISO_9797_1_MAC_ALG3</string>
-    <string name="security_mac_calc_type3">MAC_ALG_ISO_16609_MAC_ALG1</string>
+    <string name="security_mac_calc_type3" tools:ignore="Typos">MAC_ALG_ISO_16609_MAC_ALG1</string>
     <string name="security_mac_calc_type4">MAC_ALG_FAST_MODE</string>
     <string name="security_mac_calc_type5">MAC_ALG_X9_19</string>
     <string name="security_mac_calc_type6">MAC_ALG_CBC</string>
     <string name="security_mac_calc_type7">MAC_ALG_CUP_SM4_MAC_ALG1</string>
     <string name="security_mac_calc_type8">MAC_ALG_FAST_MODE_INTERNATIONAL</string>
     <string name="security_mac_calc_type9">MAC_ALG_CBC_INTERNATIONAL</string>
-    <string name="security_mac_calc_type10">MAC_ALG_HMAC_SHA1</string>
+    <string name="security_mac_calc_type10" tools:ignore="Typos">MAC_ALG_HMAC_SHA1</string>
     <string name="security_mac_calc_type11">MAC_ALG_HMAC_SHA256</string>
     <string name="security_mac_calc_type12">MAC_ALG_CMAC</string>
 
@@ -624,11 +626,11 @@
     <string name="security_hash_type_sha512">SHA512</string>
     <string name="security_rsa_padding_mode">Padding mode</string>
     <string name="security_rsa_padding_no_padding">NOTHING_PADDING</string>
-    <string name="security_rsa_padding_pkcs1">PKCS1_PADDING</string>
+    <string name="security_rsa_padding_pkcs1" tools:ignore="Typos">PKCS1_PADDING</string>
     <string name="security_rsa_padding_pkcs7">PKCS7_PADDING</string>
     <string name="security_rsa_padding_pkcs5">PKCS5_PADDING</string>
     <string name="security_rsa_padding_pkcs1_oaep">PKCS1_OAEP_PADDING</string>
-    <string name="security_rsa_padding_pkcs1_v1_5_sha512">PKCS1_V1_5_SHA512</string>
+    <string name="security_rsa_padding_pkcs1_v1_5_sha512" tools:ignore="Typos">PKCS1_V1_5_SHA512</string>
     ////////////////////////////////////////////////////////////////////////////////////////////////
     <string name="tax_test_page">Tax test</string>
 
@@ -815,5 +817,29 @@
     <string name="please_insert_or_tap_card">Please insert or tap your card</string>
     <string name="processing_transaction_data">Processing transaction data</string>
     <string name="card_payment">Card Payment</string>
+    <string name="enter_amount">Enter Amount</string>
+    <string name="continue_btn">Continue</string>
+    <string name="initializing">Initializing...</string>
+    <string name="egp_currency">EGP</string>
+    <string name="default_amount">0.00</string>
+    <string name="egp_amount_format">EGP %1$s</string>
+    <string name="loading_iso8583_logs">Loading ISO8583 logs…</string>
+    <string name="waiting_for_card">Waiting for card…</string>
+    <string name="contactless_card_detected">Contactless card detected</string>
+    <string name="chip_card_detected">Chip card detected</string>
+    <string name="application_selected">Application selected</string>
+    <string name="card_label">Card: %1$s</string>
+    <string name="reading_card_data">Reading card data…</string>
+    <string name="signature_required">Signature required</string>
+    <string name="verifying_certificate">Verifying certificate…</string>
+    <string name="connecting_to_bank">Connecting to bank…</string>
+    <string name="please_present_card_again">Please present card again</string>
+    <string name="enter_pin_amount_verification">Enter PIN (Amount requires verification)</string>
+    <string name="processing_online_authorization">Processing online authorization…</string>
+    <string name="back">Back</string>
+    <string name="declined_format">Declined: %1$s\nCode: %2$d</string>
+    <string name="error_format">Error: %1$s</string>
+    <string name="no_iso8583_logs_found">No ISO8583 log files found.\n\nLocation: /Android/data/com.neo.neopayplus/files/iso_logs/\n\nLogs are created when you:\n- Process a sale transaction (0100)\n- Process a reversal transaction (0400)</string>
+    <string name="error_loading_iso_logs">Error loading ISO logs: %1$s</string>
 
 </resources>

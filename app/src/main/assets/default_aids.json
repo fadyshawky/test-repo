@@ -1,0 +1,122 @@
+{
+  "aids": [
+    {
+      "Card scheme / payment network": "Visa",
+      "RID": "A000000003",
+      "enable": true,
+      "dDOL": "9F37049F47018F019F3201",
+      "version": "0097",
+      "kernel_type": 3,
+      "children": [
+        {
+          "Product": "Visa credit/debit",
+          "AID": "A0000000031010",
+          "PIX": "1010",
+          "enable": true
+        },
+        {
+          "Product": "Visa Electron",
+          "AID": "A0000000032010",
+          "PIX": "2010",
+          "enable": true
+        },
+        {
+          "Product": "V Pay",
+          "AID": "A0000000032020",
+          "PIX": "2020",
+          "enable": true
+        },
+        {
+          "Product": "Plus",
+          "AID": "A0000000038010",
+          "PIX": "8010",
+          "enable": true
+        }
+      ]
+    },
+    {
+      "Card scheme / payment network": "Mastercard",
+      "RID": "A000000004",
+      "enable": true,
+      "dDOL": "9F37049F47018F019F3201",
+      "version": "0002",
+      "kernel_type": 2,
+      "refund_TACDenial_DF13": "FFFFFFFFFF",
+      "refund_TACOnline_DF12": "0000000000",
+      "refund_TACDefault_DF11": "0000000000",
+      "termRiskManagement": "6C78800000000000",
+      "children": [
+        {
+          "Product": "Mastercard credit/debit",
+          "AID": "A0000000041010",
+          "PIX": "1010",
+          "enable": true
+        },
+        {
+          "Product": "Mastercard[26]",
+          "AID": "A0000000049999",
+          "PIX": "9999",
+          "enable": false
+        },
+        {
+          "Product": "Maestro",
+          "AID": "A0000000043060",
+          "PIX": "3060",
+          "enable": true
+        },
+        {
+          "Product": "Cirrus ATM card only",
+          "AID": "A0000000046000",
+          "PIX": "6000",
+          "enable": false
+        },
+        {
+          "Product": "Chip Authentication Program Securecode",
+          "AID": "A0000000048002",
+          "PIX": "8002",
+          "enable": false
+        }
+      ]
+    },
+    {
+      "Card scheme / payment network": "Mastercard",
+      "RID": "A000000005",
+      "enable": true,
+      "dDOL": "9F37049F47018F019F3201",
+      "kernel_type": 2,
+      "refund_TACDenial_DF13": "FFFFFFFFFF",
+      "refund_TACOnline_DF12": "0000000000",
+      "refund_TACDefault_DF11": "0000000000",
+      "termRiskManagement": "6C78800000000000",
+      "children": [
+        {
+          "Product": "Maestro UK (formerly Switch)",
+          "termRiskManagement": "4C78800000000000",
+          "AID": "A0000000050001",
+          "PIX": "1",
+          "enable": true
+        }
+      ]
+    },
+    {
+      "Card scheme / payment network": "Meeza",
+      "RID": "A000000732",
+      "enable": true,
+      "kernel_type": 2,
+      "children": [
+        {
+          "Product": "meeza Card",
+          "AID": "A000000732100123",
+          "PIX": "100123",
+          "enable": true
+        },
+        {
+          "Product": "meeza Card",
+          "AID": "A000000732100101",
+          "PIX": "100101",
+          "enable": true
+        }
+      ]
+    }
+  ]
+}

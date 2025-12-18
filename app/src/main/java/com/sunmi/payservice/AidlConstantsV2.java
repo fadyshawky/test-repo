@@ -71,12 +71,20 @@ public final class AidlConstantsV2 {
             public static final int OP_PAYWAVE = 2;
             public static final int OP_AE = 3;
             public static final int OP_JCB = 4;
-            // Alias for OP_NORMAL (used in ProcessingActivity)
+            // Alias for OP_NORMAL
             public static final int OP_READ = 0;
         }
+
         public static final class FlowType {
-            public static final int TYPE_NFC_SPEEDUP = 1;
-            public static final int TYPE_EMV_STANDARD = 2;
+            public static final int TYPE_EMV_STANDARD = 0x01; // 1 - Standard authorization flow
+            public static final int TYPE_EMV_BRIEF = 0x02; // 2 - Simple flow, finished as soon as read card number
+            public static final int TYPE_NFC_SKIP_CVM = 0x03; // 3 - Contactless skip CVM verification
+            public static final int TYPE_NFC_SPEEDUP = 0x04; // 4 - Contactless speedup flow
+        }
+
+        public static final class ScriptType {
+            public static final int SCRIPT_71 = 0;
+            public static final int SCRIPT_72 = 1;
         }
     }
 
@@ -107,8 +115,14 @@ public final class AidlConstantsV2 {
         public static final CardType CTX512B = new CardType(140);
 
         private final int value;
-        private CardType(int v) { this.value = v; }
-        public int getValue() { return value; }
+
+        private CardType(int v) {
+            this.value = v;
+        }
+
+        public int getValue() {
+            return value;
+        }
     }
 
     public static final class CardExistStatus {
@@ -131,9 +145,9 @@ public final class AidlConstantsV2 {
         public static final String TAMPER_LOG = "TL";
         public static final String TERM_STATUS = "TS";
         public static final String CLEAR_TAMPER_LOG = "CTL";
-        public static final String RESERVED = "RSVD";  // Reserved parameter key
-        public static final String CARD_HW = "CHW";     // Card hardware status
-        public static final String SAM_COUNT = "SAMC";  // SAM card count
+        public static final String RESERVED = "RSVD"; // Reserved parameter key
+        public static final String CARD_HW = "CHW"; // Card hardware status
+        public static final String SAM_COUNT = "SAMC"; // SAM card count
         public static final String NFC_CONFIG = "NFCC"; // NFC configuration
     }
 
@@ -141,15 +155,15 @@ public final class AidlConstantsV2 {
         // Screen mode constants
         public static final int SET_SCREEN_MONOPOLY = 0;
         public static final int CLEAR_SCREEN_MONOPOLY = 1;
-        
+
         // Status bar constants
         public static final int DISABLE_STATUS_BAR_DROP_DOWN = 0;
         public static final int ENABLE_STATUS_BAR_DROP_DOWN = 1;
-        
+
         // Navigation bar constants
         public static final int HIDE_NAV_BAR = 0;
         public static final int SHOW_NAV_BAR = 1;
-        
+
         // Navigation bar item constants
         public static final int HIDE_NAV_ITEM_BACK_KEY = 0x01;
         public static final int HIDE_NAV_ITEM_HOME_KEY = 0x02;
@@ -163,4 +177,3 @@ public final class AidlConstantsV2 {
         public static final int RED_LIGHT = 3;
     }
 }
-

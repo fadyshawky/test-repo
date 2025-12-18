@@ -21,7 +21,7 @@ public class PasswordEditText extends AppCompatTextView {
     private Paint paint;
 
     private int textLength = 0;
-    private int passwordLength = 12;
+    private final int passwordLength = 12;
     // 缓存输入的密码
     private StringBuilder inputSB;
 
@@ -49,10 +49,9 @@ public class PasswordEditText extends AppCompatTextView {
         setHint(getResources().getString(R.string.please_pay_password));
         setGravity(Gravity.CENTER);
         setTextSize(18);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // 设置字间距
-            setLetterSpacing(0.2f);
-        }
+        // minSdk is 24, so LOLLIPOP check is unnecessary
+        // 设置字间距
+        setLetterSpacing(0.2f);
         inputSB = new StringBuilder();
     }
 

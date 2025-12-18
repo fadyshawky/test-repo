@@ -244,6 +244,53 @@ public class ByteUtil {
         return result;
     }
 
+    /**
+     * Convert hex string to byte array with specified length (pads with zeros if
+     * needed)
+     *
+     * @param hexStr Hex string
+     * @param length Desired byte array length
+     * @return Byte array of specified length
+     */
+    public static byte[] hexStr2Bytes(String hexStr, int length) {
+        byte[] bytes = hexStr2Bytes(hexStr);
+        if (bytes.length == length) {
+            return bytes;
+        }
+        byte[] result = new byte[length];
+        if (bytes.length > length) {
+            // Truncate if too long
+            System.arraycopy(bytes, 0, result, 0, length);
+        } else {
+            // Pad with zeros if too short
+            System.arraycopy(bytes, 0, result, 0, bytes.length);
+            // Remaining bytes are already zero (default)
+        }
+        return result;
+    }
+
+    /**
+     * Convert text string to byte array with specified length (pads with spaces or
+     * nulls)
+     *
+     * @param text   Text string
+     * @param length Desired byte array length
+     * @return Byte array of specified length
+     */
+    public static byte[] text2Bytes(String text, int length) {
+        if (text == null) {
+            text = "";
+        }
+        byte[] result = new byte[length];
+        byte[] textBytes = text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        int copyLength = Math.min(textBytes.length, length);
+        System.arraycopy(textBytes, 0, result, 0, copyLength);
+        // Pad with spaces (0x20) for remaining bytes
+        for (int i = copyLength; i < length; i++) {
+            result[i] = 0x20; // Space character
+        }
+        return result;
+    }
 
     /**
      * Convert char to byte
@@ -260,6 +307,5 @@ public class ByteUtil {
         }
         return (c - '0') & 0x0f;
     }
-
 
 }

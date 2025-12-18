@@ -19,7 +19,8 @@ import java.util.TimeZone;
 
 public class SystemDateTime {
 
-    public static void setDateTime(int year, int month, int day, int hour, int minute) throws IOException, InterruptedException {
+    public static void setDateTime(int year, int month, int day, int hour, int minute)
+            throws IOException, InterruptedException {
         requestPermission();
         Calendar c = Calendar.getInstance();
         c.set(Calendar.YEAR, year);
@@ -137,7 +138,7 @@ public class SystemDateTime {
      */
     public static String getDateByStamp(long stamp) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
@@ -145,7 +146,6 @@ public class SystemDateTime {
         }
         return null;
     }
-
 
     /**
      * 通过时间戳获取时间
@@ -155,7 +155,7 @@ public class SystemDateTime {
      */
     public static String getTimeByStamp(long stamp) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.US);
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
@@ -173,9 +173,9 @@ public class SystemDateTime {
         String mYear = String.valueOf(c.get(Calendar.YEAR));// 获取当前年份
         String mMonth = String.valueOf(c.get(Calendar.MONTH) + 1);// 获取当前月份
         String mDay = String.valueOf(c.get(Calendar.DAY_OF_MONTH));// 获取当前月份的日期号码
-        return mYear + "-" + (mMonth.length() == 1 ? "0" + mMonth : mMonth) + "-" + (mDay.length() == 1 ? "0" + mDay : mDay);
+        return mYear + "-" + (mMonth.length() == 1 ? "0" + mMonth : mMonth) + "-"
+                + (mDay.length() == 1 ? "0" + mDay : mDay);
     }
-
 
     /**
      * 获取今天往后几天的日期（几月几号）
@@ -188,42 +188,42 @@ public class SystemDateTime {
         String mDay = String.valueOf(c.get(Calendar.DAY_OF_MONTH));
         String mMonth = String.valueOf(c.get(Calendar.MONTH) + 1);
         String mYear = String.valueOf(c.get(Calendar.YEAR));
-        return mYear + "-" + (mMonth.length() == 1 ? "0" + mMonth : mMonth) + "-" + (mDay.length() == 1 ? "0" + mDay : mDay);
+        return mYear + "-" + (mMonth.length() == 1 ? "0" + mMonth : mMonth) + "-"
+                + (mDay.length() == 1 ? "0" + mDay : mDay);
 
     }
 
-
     public static String getYYMM() {
-        SimpleDateFormat date = new SimpleDateFormat("yyMM");
-        Date curDate = new Date(System.currentTimeMillis());//获取当前时间
+        SimpleDateFormat date = new SimpleDateFormat("yyMM", Locale.US);
+        Date curDate = new Date(System.currentTimeMillis());// 获取当前时间
         String strDate = date.format(curDate);
         return strDate;
     }
 
     public static String getMMDD() {
-        SimpleDateFormat date = new SimpleDateFormat("MMdd");
-        Date curDate = new Date(System.currentTimeMillis());//获取当前时间
+        SimpleDateFormat date = new SimpleDateFormat("MMdd", Locale.US);
+        Date curDate = new Date(System.currentTimeMillis());// 获取当前时间
         String strDate = date.format(curDate);
         return strDate;
     }
 
     public static String getYYYY() {
-        SimpleDateFormat date = new SimpleDateFormat("yyyy");
-        Date curDate = new Date(System.currentTimeMillis());//获取当前时间
+        SimpleDateFormat date = new SimpleDateFormat("yyyy", Locale.US);
+        Date curDate = new Date(System.currentTimeMillis());// 获取当前时间
         String strDate = date.format(curDate);
         return strDate;
     }
 
     public static String getHHmmss() {
-        SimpleDateFormat time = new SimpleDateFormat("HHmmss");
-        Date curDate = new Date(System.currentTimeMillis());//获取当前时间
+        SimpleDateFormat time = new SimpleDateFormat("HHmmss", Locale.US);
+        Date curDate = new Date(System.currentTimeMillis());// 获取当前时间
         String strTime = time.format(curDate);
         return strTime;
     }
 
     public static String getCurrentTime(long stamp) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US);
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {
@@ -234,7 +234,7 @@ public class SystemDateTime {
 
     public static String getCurrentDate(long stamp) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd", Locale.US);
             String sd = sdf.format(new Date(Long.parseLong(String.valueOf(stamp))));
             return sd;
         } catch (Exception e) {

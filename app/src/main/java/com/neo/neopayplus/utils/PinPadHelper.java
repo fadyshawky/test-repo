@@ -3,7 +3,7 @@ package com.neo.neopayplus.utils;
 import android.os.RemoteException;
 
 import com.neo.neopayplus.Constant;
-import com.neo.neopayplus.security.KeyManagerPOS;
+import com.neo.neopayplus.emv.KeyManager;
 import com.sunmi.pay.hardware.aidlv2.bean.PinPadConfigV2;
 import com.sunmi.pay.hardware.aidlv2.pinpad.PinPadListenerV2;
 import com.sunmi.pay.hardware.aidlv2.pinpad.PinPadOptV2;
@@ -18,25 +18,24 @@ import java.nio.charset.StandardCharsets;
  * Provides a consistent, secure way to configure and initialize PIN pads.
  */
 public class PinPadHelper {
-    
+
     private static final String TAG = Constant.TAG;
-    
+
     /**
      * PIN Pad Configuration Builder
      * Provides a fluent API for building PIN pad configurations
      */
     public static class PinPadConfigBuilder {
-        private PinPadConfigV2 config = new PinPadConfigV2();
+        private final PinPadConfigV2 config = new PinPadConfigV2();
         private String cardNo;
         private int pinType = 0; // 0 = offline, 1 = online
-        private int pinKeyIndex = 12; // Default PIN key index
+        private int pinKeyIndex = KeyManager.TPK_INDEX; // Default PIN key index
         private int timeout = 60 * 1000; // 60 seconds
         private int minInput = 0;
         private int maxInput = 12;
         private int keySystem = 0; // 0 = MKSK, 1 = DUKPT
         private int algorithmType = 0; // 0 = 3DES
-        private boolean useActiveSlot = false; // Use KeyManagerPOS.getActivePinSlot()
-        
+
         /**
          * Set card number (required for PIN block encryption)
          */
@@ -44,7 +43,7 @@ public class PinPadHelper {
             this.cardNo = cardNo;
             return this;
         }
-        
+
         /**
          * Set PIN type (0 = offline PIN, 1 = online PIN)
          */
@@ -53,7 +52,7 @@ public class PinPadHelper {
             this.config.setPinType(pinType);
             return this;
         }
-        
+
         /**
          * Set PIN key index (TPK slot)
          * If useActiveSlot() is called, this value is ignored
@@ -62,15 +61,7 @@ public class PinPadHelper {
             this.pinKeyIndex = pinKeyIndex;
             return this;
         }
-        
-        /**
-         * Use active PIN slot from KeyManagerPOS (recommended for production)
-         */
-        public PinPadConfigBuilder useActiveSlot() {
-            this.useActiveSlot = true;
-            return this;
-        }
-        
+
         /**
          * Set timeout in milliseconds
          */
@@ -79,7 +70,7 @@ public class PinPadHelper {
             this.config.setTimeout(timeoutMs);
             return this;
         }
-        
+
         /**
          * Set PIN input length constraints
          */
@@ -90,7 +81,7 @@ public class PinPadHelper {
             this.config.setMaxInput(maxInput);
             return this;
         }
-        
+
         /**
          * Set key system (0 = MKSK, 1 = DUKPT)
          */
@@ -99,7 +90,7 @@ public class PinPadHelper {
             this.config.setKeySystem(keySystem);
             return this;
         }
-        
+
         /**
          * Set algorithm type (0 = 3DES, 1 = SM4, 2 = AES)
          */
@@ -108,7 +99,7 @@ public class PinPadHelper {
             this.config.setAlgorithmType(algorithmType);
             return this;
         }
-        
+
         /**
          * Build the PIN pad configuration
          */
@@ -116,17 +107,10 @@ public class PinPadHelper {
             // Set common defaults
             config.setPinPadType(0); // SDK built-in PinPad
             config.setOrderNumKey(false); // Don't use ordered number key
-            
-            // Set PIN key index (use active slot if requested)
-            int finalPinKeyIndex = useActiveSlot 
-                ? KeyManagerPOS.getActivePinSlot() 
-                : pinKeyIndex;
-            config.setPinKeyIndex(finalPinKeyIndex);
-            
-            if (useActiveSlot) {
-                LogUtil.e(TAG, "Using active PIN slot from KeyManagerPOS: " + finalPinKeyIndex);
-            }
-            
+
+            // Set PIN key index
+            config.setPinKeyIndex(pinKeyIndex);
+
             // Set PAN if card number provided (required for ISO-0 PIN block format)
             if (cardNo != null && cardNo.length() >= 14) {
                 try {
@@ -145,92 +129,91 @@ public class PinPadHelper {
                     LogUtil.e(TAG, "⚠️ PAN is required for online PIN encryption (ISO-0 format)");
                 }
             }
-            
+
             // Set PIN block format (ISO-0 for online PIN)
             if (pinType == 1) {
                 config.setPinblockFormat(PinBlockFormat.SEC_PIN_BLK_ISO_FMT0);
             }
-            
+
             LogUtil.e(TAG, "PinPad Configuration:");
             LogUtil.e(TAG, "  PIN Type: " + (pinType == 1 ? "Online" : "Offline"));
             LogUtil.e(TAG, "  Key System: " + (keySystem == 1 ? "DUKPT" : "MKSK"));
             LogUtil.e(TAG, "  PIN Block Format: " + (pinType == 1 ? "ISO-0" : "Default"));
             LogUtil.e(TAG, "  Algorithm: " + (algorithmType == 0 ? "3DES" : (algorithmType == 1 ? "SM4" : "AES")));
-            LogUtil.e(TAG, "  Key Index: " + finalPinKeyIndex);
-            
+            LogUtil.e(TAG, "  Key Index: " + pinKeyIndex);
+
             return config;
         }
     }
-    
+
     /**
      * Create a new PIN pad configuration builder
      */
     public static PinPadConfigBuilder builder() {
         return new PinPadConfigBuilder();
     }
-    
+
     /**
      * Initialize PIN pad with default configuration (legacy compatibility)
      * 
      * @param pinPadOptV2 PIN pad service
-     * @param cardNo Card number
-     * @param pinType PIN type (0 = offline, 1 = online)
-     * @param listener PIN pad listener
+     * @param cardNo      Card number
+     * @param pinType     PIN type (0 = offline, 1 = online)
+     * @param listener    PIN pad listener
      * @throws RemoteException if initialization fails
      */
-    public static void initPinPad(PinPadOptV2 pinPadOptV2, String cardNo, int pinType, 
-                                  PinPadListenerV2 listener) throws RemoteException {
-        initPinPad(pinPadOptV2, cardNo, pinType, 12, listener);
+    public static void initPinPad(PinPadOptV2 pinPadOptV2, String cardNo, int pinType,
+            PinPadListenerV2 listener) throws RemoteException {
+        initPinPad(pinPadOptV2, cardNo, pinType, KeyManager.TPK_INDEX, listener);
     }
-    
+
     /**
      * Initialize PIN pad with specified key index
      * 
      * @param pinPadOptV2 PIN pad service
-     * @param cardNo Card number
-     * @param pinType PIN type (0 = offline, 1 = online)
+     * @param cardNo      Card number
+     * @param pinType     PIN type (0 = offline, 1 = online)
      * @param pinKeyIndex PIN key index
-     * @param listener PIN pad listener
+     * @param listener    PIN pad listener
      * @throws RemoteException if initialization fails
      */
-    public static void initPinPad(PinPadOptV2 pinPadOptV2, String cardNo, int pinType, 
-                                  int pinKeyIndex, PinPadListenerV2 listener) throws RemoteException {
+    public static void initPinPad(PinPadOptV2 pinPadOptV2, String cardNo, int pinType,
+            int pinKeyIndex, PinPadListenerV2 listener) throws RemoteException {
         PinPadConfigV2 config = builder()
-            .setCardNo(cardNo)
-            .setPinType(pinType)
-            .setPinKeyIndex(pinKeyIndex)
-            .setTimeout(60 * 1000)
-            .setInputLength(0, 12)
-            .setKeySystem(0)
-            .setAlgorithmType(0)
-            .build();
-        
+                .setCardNo(cardNo)
+                .setPinType(pinType)
+                .setPinKeyIndex(pinKeyIndex)
+                .setTimeout(60 * 1000)
+                .setInputLength(0, 12)
+                .setKeySystem(0)
+                .setAlgorithmType(0)
+                .build();
+
         pinPadOptV2.initPinPad(config, listener);
     }
-    
+
     /**
      * Initialize PIN pad with production-ready configuration (uses active slot)
-     * Recommended for ProcessingActivity and production code
+     * Recommended for production code
      * 
      * @param pinPadOptV2 PIN pad service
-     * @param cardNo Card number
-     * @param pinType PIN type (0 = offline, 1 = online)
-     * @param listener PIN pad listener
+     * @param cardNo      Card number
+     * @param pinType     PIN type (0 = offline, 1 = online)
+     * @param listener    PIN pad listener
      * @throws RemoteException if initialization fails
      */
     public static void initPinPadProduction(PinPadOptV2 pinPadOptV2, String cardNo, int pinType,
-                                           PinPadListenerV2 listener) throws RemoteException {
+            PinPadListenerV2 listener) throws RemoteException {
         PinPadConfigV2 config = builder()
-            .setCardNo(cardNo)
-            .setPinType(pinType)
-            .useActiveSlot() // Use active slot from KeyManagerPOS
-            .setTimeout(60 * 1000)
-            .setInputLength(4, 6) // Standard PIN length
-            .setKeySystem(0) // MKSK
-            .setAlgorithmType(0) // 3DES
-            .build();
-        
+                .setCardNo(cardNo)
+                .setPinType(pinType)
+                .setPinKeyIndex(KeyManager.TPK_INDEX)
+                .setTimeout(60 * 1000)
+                .setInputLength(4, 6) // Standard PIN length
+                .setKeySystem(0) // MKSK
+                .setAlgorithmType(0) // 3DES
+                .build();
+
         pinPadOptV2.initPinPad(config, listener);
     }
 }
-
