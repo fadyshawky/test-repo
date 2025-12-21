@@ -14,14 +14,20 @@ import java.util.Locale
  * - Pulls the standard online authorization tag set from the EMV kernel.
  * - Assembles them in canonical order.
  * - Falls back to POS-supplied amount/currency if missing from kernel.
+ * - PAN tags (5A, 57, 9F6B) are included UNMASKED for bank communication.
+ *   PAN is read directly from EMV kernel and not masked in Field 55.
  */
 object Emv55Builder {
     
     // Brand-specific tag lists for simpler buildForBrand() method
     // Note: 9F6E (POS Entry Mode) is added separately if not provided by kernel
-    private val VISA_TAGS = arrayOf("9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A","82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F41","9F6E")
-    private val MC_TAGS   = arrayOf("9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A","82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F6E")
-    private val MEEZA_TAGS= arrayOf("9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A","82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F41","9F6E")
+    // PAN tags (5A, 57, 9F6B) are included for bank communication in Field 55
+    // Expiry date (59) and Application Expiration Date (5F24) are included for bank communication in Field 55
+    // TVR (95) and TSI (9B) are terminal-generated tags required for receipts and bank communication
+    // Track 2 data (57, 9F6B) also contains expiry date as fallback
+    private val VISA_TAGS = arrayOf("9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A","82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F41","9F6E","9B","5A","57","9F6B","59","5F24")
+    private val MC_TAGS   = arrayOf("9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A","82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F6E","9B","5A","57","9F6B","59","5F24")
+    private val MEEZA_TAGS= arrayOf("9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A","82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F41","9F6E","9B","5A","57","9F6B","59","5F24")
 
     /**
      * Build Field 55 for a specific brand using brand-specific tag lists and TLVOpCode.
@@ -70,6 +76,96 @@ object Emv55Builder {
         LogUtil.e(Constant.TAG, "=== Building Field 55 (DE55) ===")
         LogUtil.e(Constant.TAG, "Extracted ${tlvMap.size} tags from EMV kernel")
         LogUtil.e(Constant.TAG, "Tag 9F6E present: $has9F6E (contactless=$isContactless, hasPin=$hasPin)")
+        
+        // Verify PAN tags are present and unmasked (for bank communication)
+        val pan5A = tlvMap["5A"]?.value
+        val pan57 = tlvMap["57"]?.value
+        val pan9F6B = tlvMap["9F6B"]?.value
+        if (pan5A != null && pan5A.isNotEmpty()) {
+            // PAN in tag 5A is BCD encoded, remove trailing 'F' padding for display
+            val panDisplay = pan5A.replace(Regex("F+$"), "")
+            val maskedPan = if (panDisplay.length >= 10) {
+                "${panDisplay.take(6)}****${panDisplay.takeLast(4)}"
+            } else {
+                "****"
+            }
+            LogUtil.e(Constant.TAG, "✓ PAN tag 5A present in Field 55 (unmasked for backend): $maskedPan")
+        } else if (pan57 != null && pan57.isNotEmpty()) {
+            LogUtil.e(Constant.TAG, "✓ PAN tag 57 (Track 2) present in Field 55 (unmasked for backend)")
+        } else if (pan9F6B != null && pan9F6B.isNotEmpty()) {
+            LogUtil.e(Constant.TAG, "✓ PAN tag 9F6B (Contactless Track 2) present in Field 55 (unmasked for backend)")
+        } else {
+            LogUtil.e(Constant.TAG, "⚠️ No PAN tags (5A, 57, 9F6B) found in Field 55")
+        }
+        
+        // Verify expiry date is present (for bank communication)
+        // Priority: tag 59 -> tag 5F24 -> Track 2 (57/9F6B)
+        var expiryFound = false
+        val expiry59 = tlvMap["59"]?.value
+        if (expiry59 != null && expiry59.isNotEmpty()) {
+            val expiryDisplay = expiry59.replace(Regex("F+$"), "")
+            if (expiryDisplay.length >= 4) {
+                val yy = expiryDisplay.substring(0, 2)
+                val mm = expiryDisplay.substring(2, 4)
+                LogUtil.e(Constant.TAG, "✓ Expiry date tag 59 present in Field 55 (unmasked for backend): $mm/$yy (hex: $expiry59)")
+                expiryFound = true
+            }
+        }
+        
+        // Fallback to tag 5F24
+        if (!expiryFound) {
+            val expiry5F24 = tlvMap["5F24"]?.value
+            if (expiry5F24 != null && expiry5F24.isNotEmpty()) {
+                val expiryDisplay = expiry5F24.replace(Regex("F+$"), "")
+                if (expiryDisplay.length >= 4) {
+                    val yy = expiryDisplay.substring(0, 2)
+                    val mm = expiryDisplay.substring(2, 4)
+                    LogUtil.e(Constant.TAG, "✓ Expiry date tag 5F24 present in Field 55 (unmasked for backend): $mm/$yy (hex: $expiry5F24)")
+                    expiryFound = true
+                }
+            }
+        }
+        
+        // Fallback to Track 2 data (tag 57 or 9F6B)
+        if (!expiryFound) {
+            val track257 = tlvMap["57"]?.value
+            if (track257 != null && track257.isNotEmpty()) {
+                val track2Hex = track257.uppercase()
+                val delimiterIndex = track2Hex.indexOf('D')
+                if (delimiterIndex > 0 && track2Hex.length > delimiterIndex + 4) {
+                    val expiryHex = track2Hex.substring(delimiterIndex + 1, delimiterIndex + 5)
+                    val expiry = expiryHex.replace(Regex("F+$"), "")
+                    if (expiry.length >= 4) {
+                        val yy = expiry.substring(0, 2)
+                        val mm = expiry.substring(2, 4)
+                        LogUtil.e(Constant.TAG, "✓ Expiry date extracted from Track 2 (57) in Field 55 (unmasked for backend): $mm/$yy")
+                        expiryFound = true
+                    }
+                }
+            }
+            
+            if (!expiryFound) {
+                val track29F6B = tlvMap["9F6B"]?.value
+                if (track29F6B != null && track29F6B.isNotEmpty()) {
+                    val track2Hex = track29F6B.uppercase()
+                    val delimiterIndex = track2Hex.indexOf('D')
+                    if (delimiterIndex > 0 && track2Hex.length > delimiterIndex + 4) {
+                        val expiryHex = track2Hex.substring(delimiterIndex + 1, delimiterIndex + 5)
+                        val expiry = expiryHex.replace(Regex("F+$"), "")
+                        if (expiry.length >= 4) {
+                            val yy = expiry.substring(0, 2)
+                            val mm = expiry.substring(2, 4)
+                            LogUtil.e(Constant.TAG, "✓ Expiry date extracted from Track 2 (9F6B) in Field 55 (unmasked for backend): $mm/$yy")
+                            expiryFound = true
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!expiryFound) {
+            LogUtil.e(Constant.TAG, "⚠️ Expiry date not found in Field 55 (tried tags 59, 5F24, 57, 9F6B)")
+        }
         
         // If 9F6E is missing, generate it and append to Field 55
         if (!has9F6E) {
@@ -136,13 +232,16 @@ object Emv55Builder {
     }
 
     // Canonical order (Visa/MC common superset)
+    // PAN tags (5A, 57, 9F6B) are included for bank communication in Field 55
     private val REQUIRED_ORDER = listOf(
         "9F26","9F27","9F10","9F37","9F36","95","9A","9C","9F02","5F2A",
         "82","9F1A","9F03","9F33","9F34","9F35","9F1E","84","9F09","9F41"
     )
 
     // Useful optionals to include when present
-    private val OPTIONAL_ORDER = listOf("5F34","9F6E","9F12","50","9F4E","9B")
+    // PAN tags (5A, 57, 9F6B) are included for bank communication
+    // Expiry date (59) is included for bank communication
+    private val OPTIONAL_ORDER = listOf("5F34","9F6E","9F12","50","9F4E","9B","5A","57","9F6B","59")
 
     /**
      * @param emv EMVOptV2 from Sunmi PayLib

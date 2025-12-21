@@ -1130,9 +1130,63 @@ public class EMVHandler {
 
     /**
      * Read TLV value from EMV kernel
+     * For contactless transactions, tries brand-specific TLVOpCode first, then
+     * falls back to OP_NORMAL
+     * TVR (95) and TSI (9B) are terminal-generated tags and should be available in
+     * OP_NORMAL,
+     * but for contactless they may also be in brand-specific space
      */
     public String readTlv(String tag) {
         try {
+            // For contactless, try brand-specific space first, then OP_NORMAL
+            if (isContactless()) {
+                // Read AID from EMV kernel to determine brand
+                String aid = null;
+                try {
+                    byte[] aidOut = new byte[256];
+                    int aidLen = emvOptV2.getTlvList(AidlConstants.EMV.TLVOpCode.OP_NORMAL,
+                            new String[] { "4F", "9F06" }, aidOut);
+                    if (aidLen > 0) {
+                        java.util.Map<String, TLV> aidTlvMap = TLVUtil
+                                .buildTLVMap(java.util.Arrays.copyOf(aidOut, aidLen));
+                        TLV aidTlv = aidTlvMap.get("4F");
+                        if (aidTlv == null) {
+                            aidTlv = aidTlvMap.get("9F06");
+                        }
+                        if (aidTlv != null) {
+                            aid = aidTlv.getValue();
+                        }
+                    }
+                } catch (Exception e) {
+                    // Failed to read AID, continue with OP_NORMAL
+                }
+
+                // Determine brand from AID and try brand-specific TLVOpCode
+                if (aid != null && !aid.isEmpty()) {
+                    boolean isMastercard = aid.startsWith("A000000004") || aid.startsWith("A000000005");
+                    boolean isVisa = aid.startsWith("A000000003");
+
+                    // Try brand-specific TLVOpCode first for contactless
+                    int tlvOpCode = AidlConstants.EMV.TLVOpCode.OP_NORMAL;
+                    if (isMastercard) {
+                        tlvOpCode = com.sunmi.payservice.AidlConstantsV2.EMV.TLVOpCode.OP_PAYPASS;
+                    } else if (isVisa) {
+                        tlvOpCode = com.sunmi.payservice.AidlConstantsV2.EMV.TLVOpCode.OP_PAYWAVE;
+                    }
+
+                    // Try brand-specific space first
+                    byte[] out = new byte[256];
+                    int len = emvOptV2.getTlvList(tlvOpCode, new String[] { tag }, out);
+                    if (len > 0) {
+                        TLV tlv = TLVUtil.buildTLVMap(java.util.Arrays.copyOf(out, len)).get(tag);
+                        if (tlv != null && tlv.getValue() != null && !tlv.getValue().isEmpty()) {
+                            return tlv.getValue();
+                        }
+                    }
+                }
+            }
+
+            // Fall back to OP_NORMAL (works for both contact and contactless)
             byte[] out = new byte[256];
             int len = emvOptV2.getTlvList(AidlConstants.EMV.TLVOpCode.OP_NORMAL, new String[] { tag }, out);
             if (len > 0) {
@@ -1193,8 +1247,9 @@ public class EMVHandler {
     // ==================== Utility ====================
 
     private String maskCardNo(String cardNo) {
-        if (cardNo == null || cardNo.length() < 8)
+        if (cardNo == null || cardNo.length() < 10)
             return "****";
-        return cardNo.substring(0, 4) + "****" + cardNo.substring(cardNo.length() - 4);
+        // Always show first 6 digits and last 4 digits
+        return cardNo.substring(0, 6) + "****" + cardNo.substring(cardNo.length() - 4);
     }
 }

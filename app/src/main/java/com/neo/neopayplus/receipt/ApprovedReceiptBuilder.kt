@@ -26,16 +26,16 @@ class ApprovedReceiptBuilder(private val data: ReceiptData) {
         lines.add(createLabelValueLine("Transaction ID", data.transactionId ?: "TXN987654321"))
         
         // Internal Terminal ID and Merchant ID
-        lines.add(createLabelValueLine("Terminal ID", data.internalTerminalId))
-        lines.add(createLabelValueLine("Merchant ID", data.internalMerchantId))
+        lines.add(createLabelValueLine("TID", data.internalTerminalId))
+        lines.add(createLabelValueLine("MID", data.internalMerchantId))
         
         // Bank logo
         val bankLogo = data.bankLogoAssetPath ?: "images/banque_misr_logo.png"
         lines.add(ReceiptLine.Logo(bankLogo, Alignment.CENTER))
         lines.add(ReceiptLine.Empty)
         // Bank Terminal ID and Bank Merchant ID
-        lines.add(createLabelValueLine("Terminal ID", data.bankTerminalId ?: "00000001"))
-        lines.add(createLabelValueLine("Merchant ID", data.bankMerchantId ?: "00000001"))
+        lines.add(createLabelValueLine("TID", data.bankTerminalId ?: "00000001"))
+        lines.add(createLabelValueLine("MID", data.bankMerchantId ?: "00000001"))
 
         lines.add(ReceiptLine.Empty)
         
@@ -45,8 +45,14 @@ class ApprovedReceiptBuilder(private val data: ReceiptData) {
             ReceiptTransactionType.REFUND -> "REFUND"
             ReceiptTransactionType.VOID -> "VOID"
         }
-        val brandTypeText = "${data.cardBrand ?: ""} $transactionTypeText"
-        val panLine = data.maskedPan
+        // Format brand with card type (e.g., "VISA DEBIT", "MASTERCARD CREDIT")
+        val brandWithType = if (data.cardBrand != null && data.cardType != null) {
+            "${data.cardBrand} ${data.cardType}"
+        } else {
+            data.cardBrand ?: ""
+        }
+        val brandTypeText = "$brandWithType $transactionTypeText"
+        val panLine = data.maskedPan ?: "" // Use empty string if null
         lines.add(ReceiptLine.Text("$brandTypeText\n$panLine", Alignment.CENTER, FontSize.LARGE, bold = true))
         lines.add(ReceiptLine.Empty)
         
@@ -72,7 +78,22 @@ class ApprovedReceiptBuilder(private val data: ReceiptData) {
         
 
         // Mastercard Requirement #8: For Chip Transaction - AID
-        lines.add(createLabelValueLine("APP ID", data.aid ?: ""))
+        lines.add(createLabelValueLine("AID", data.aid ?: ""))
+        
+        // Expiry date (masked for display)
+        if (data.maskedExpiryDate != null && data.maskedExpiryDate.isNotEmpty()) {
+            lines.add(createLabelValueLine("EXP", data.maskedExpiryDate))
+        }
+        
+        // TVR (Terminal Verification Results) - tag 95
+        if (data.tvr != null && data.tvr.isNotEmpty()) {
+            lines.add(createLabelValueLine("TVR", data.tvr))
+        }
+        
+        // TSI (Transaction Status Information) - tag 9B
+        if (data.tsi != null && data.tsi.isNotEmpty()) {
+            lines.add(createLabelValueLine("TSI", data.tsi))
+        }
         
         // Mastercard Requirement #5: Total Transaction amount and currency (align left label => value => align right)
         val formattedAmount = amountFormatter.format(data.amount) + " ${data.currency}"

@@ -61,15 +61,16 @@ class PanExtractor(private val emvOptV2: EMVOptV2) {
     
     /**
      * Extract PAN from tag 5A (Primary Account Number)
-     * PAN is BCD encoded, remove trailing 'F' padding
+     * PAN is BCD encoded, remove ONLY trailing 'F' padding (not all 'F' characters)
+     * Return PAN exactly as extracted from EMV tag - no masking, no truncation
      */
     private fun extractFromTag5A(tlvMap: Map<String, TLV>): String? {
         val tlv = tlvMap["5A"]
         if (tlv != null && tlv.value != null) {
             val panHex = tlv.value
-            // PAN is BCD encoded, remove trailing 'F' padding
-            val pan = panHex.uppercase().replace("F", "")
-            Log.e(TAG, "PAN extracted from tag 5A: ${maskPan(pan)}")
+            // PAN is BCD encoded, remove ONLY trailing 'F' padding (regex: F+$ means one or more F at end)
+            val pan = panHex.uppercase().replace(Regex("F+$"), "")
+            Log.e(TAG, "✓ PAN extracted from tag 5A (full, unmasked): $pan (length: ${pan.length})")
             return pan
         }
         return null
@@ -96,6 +97,7 @@ class PanExtractor(private val emvOptV2: EMVOptV2) {
     /**
      * Extract PAN from tag 9F6B (Contactless Track 2 Data)
      * Format: Same as tag 57
+     * Return PAN exactly as extracted from EMV tag - no masking, no truncation
      */
     private fun extractFromTag9F6B(tlvMap: Map<String, TLV>): String? {
         val tlv = tlvMap["9F6B"]
@@ -103,8 +105,9 @@ class PanExtractor(private val emvOptV2: EMVOptV2) {
             val track2Hex = tlv.value.uppercase()
             val delimiterIndex = track2Hex.indexOf('D')
             if (delimiterIndex > 0) {
-                val pan = track2Hex.substring(0, delimiterIndex).replace("F", "")
-                Log.e(TAG, "PAN extracted from tag 9F6B: ${maskPan(pan)}")
+                // Extract PAN part (before 'D' delimiter) and remove ONLY trailing 'F' padding
+                val pan = track2Hex.substring(0, delimiterIndex).replace(Regex("F+$"), "")
+                Log.e(TAG, "✓ PAN extracted from tag 9F6B (full, unmasked): $pan (length: ${pan.length})")
                 return pan
             }
         }

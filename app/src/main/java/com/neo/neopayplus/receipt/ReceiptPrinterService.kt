@@ -63,47 +63,6 @@ class ReceiptPrinterService(
     }
 
     /**
-     * Print approved transaction receipt (dual copy: merchant + customer)
-     * @deprecated Use printMerchantCopy() and printCustomerCopy() separately for better UX
-     */
-    @Deprecated("Use printMerchantCopy() and printCustomerCopy() separately")
-    fun printApprovedReceipt(data: ReceiptData, callback: PrintCallback? = null): Boolean {
-        if (sunmiPrinterService == null) {
-            Log.e(TAG, "Printer service not available")
-            callback?.onError("Printer service not available")
-            return false
-        }
-
-        return try {
-            // Print merchant copy first, then customer copy when merchant copy completes
-            printApprovedReceiptCopy(
-                data, 
-                isMerchantCopy = true, 
-                object : PrintCallback {
-                    override fun onSuccess() {
-                        Log.d(TAG, "Merchant copy printed successfully, starting customer copy...")
-                        // After merchant copy completes, print customer copy
-                        printApprovedReceiptCopy(
-                            data, 
-                            isMerchantCopy = false,
-                            callback // Final callback when customer copy completes
-                        )
-                    }
-                    override fun onError(message: String) {
-                        Log.e(TAG, "Merchant copy failed: $message")
-                        callback?.onError(message)
-                    }
-                }
-            )
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to print approved receipt: ${e.message}", e)
-            callback?.onError(e.message ?: "Print failed")
-            false
-        }
-    }
-
-    /**
      * Print declined transaction receipt (single customer copy)
      */
     fun printDeclinedReceipt(data: ReceiptData, callback: PrintCallback? = null): Boolean {

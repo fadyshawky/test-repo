@@ -13,9 +13,15 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
     fun build(): List<ReceiptLine> {
         val lines = mutableListOf<ReceiptLine>()
         
-        // Header with merchant logo only (no bank logo for declined transactions)
-        val merchantLogo = data.merchantLogoAssetPath ?: "images/receipt_logo.webp"
-        lines.add(ReceiptLine.Logo(merchantLogo, Alignment.CENTER))
+        // Header: Show bank logo if this is a bank decline, otherwise merchant logo only
+        if (data.isBankDecline && data.bankLogoAssetPath != null) {
+            // Bank decline: Show bank logo
+            lines.add(ReceiptLine.Logo(data.bankLogoAssetPath, Alignment.CENTER))
+        } else {
+            // Internal decline: Show merchant logo only
+            val merchantLogo = data.merchantLogoAssetPath ?: "images/receipt_logo.webp"
+            lines.add(ReceiptLine.Logo(merchantLogo, Alignment.CENTER))
+        }
         lines.add(ReceiptLine.Empty)
         
         // Order ID
@@ -24,9 +30,16 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
         // Transaction ID
         lines.add(createLabelValueLine("Transaction ID", data.transactionId ?: "TXN987654321"))
         
-        // Internal Terminal ID and Merchant ID
-        lines.add(createLabelValueLine("Terminal ID", data.internalTerminalId))
-        lines.add(createLabelValueLine("Merchant ID", data.internalMerchantId))
+        // Terminal ID and Merchant ID: Show bank TID/MID for bank declines, internal for internal declines
+        if (data.isBankDecline && data.bankTerminalId != null && data.bankMerchantId != null) {
+            // Bank decline: Show bank Terminal ID and Merchant ID
+            lines.add(createLabelValueLine("Terminal ID", data.bankTerminalId))
+            lines.add(createLabelValueLine("Merchant ID", data.bankMerchantId))
+        } else {
+            // Internal decline: Show internal Terminal ID and Merchant ID
+            lines.add(createLabelValueLine("Terminal ID", data.internalTerminalId))
+            lines.add(createLabelValueLine("Merchant ID", data.internalMerchantId))
+        }
 
         lines.add(ReceiptLine.Empty)
         
@@ -36,8 +49,14 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
             ReceiptTransactionType.REFUND -> "REFUND"
             ReceiptTransactionType.VOID -> "VOID"
         }
-        val brandTypeText = "${data.cardBrand ?: ""} $transactionTypeText"
-        val panLine = data.maskedPan ?: ""
+        // Format brand with card type (e.g., "VISA DEBIT", "MASTERCARD CREDIT")
+        val brandWithType = if (data.cardBrand != null && data.cardType != null) {
+            "${data.cardBrand} ${data.cardType}"
+        } else {
+            data.cardBrand ?: ""
+        }
+        val brandTypeText = "$brandWithType $transactionTypeText"
+        val panLine = data.maskedPan ?: "" // Use empty string if null, matching approved receipt format
         lines.add(ReceiptLine.Text("$brandTypeText\n$panLine", Alignment.CENTER, FontSize.LARGE, bold = true))
         lines.add(ReceiptLine.Empty)
         
@@ -56,14 +75,25 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
         // Mastercard Requirement #6: Transaction date
         lines.add(createLabelValueLine("DATE:${data.date}", "TIME:${data.time}"))
         
-        // RRN (if available)
-        if (data.rrn != null) {
-            lines.add(createLabelValueLine("RRN", data.rrn ?: ""))
+        // RRN (always show, with placeholder if not available)
+        lines.add(createLabelValueLine("RRN", data.rrn ?: ""))
+        
+        // Mastercard Requirement #8: For Chip Transaction - AID (always show, matching approved receipt)
+        lines.add(createLabelValueLine("AID", data.aid ?: ""))
+        
+        // Expiry date (masked for display)
+        if (data.maskedExpiryDate != null && data.maskedExpiryDate.isNotEmpty()) {
+            lines.add(createLabelValueLine("EXP", data.maskedExpiryDate))
         }
         
-        // Mastercard Requirement #8: For Chip Transaction - AID
-        if (data.aid != null && data.aid.isNotEmpty()) {
-            lines.add(createLabelValueLine("APP ID", data.aid))
+        // TVR (Terminal Verification Results) - tag 95
+        if (data.tvr != null && data.tvr.isNotEmpty()) {
+            lines.add(createLabelValueLine("TVR", data.tvr))
+        }
+        
+        // TSI (Transaction Status Information) - tag 9B
+        if (data.tsi != null && data.tsi.isNotEmpty()) {
+            lines.add(createLabelValueLine("TSI", data.tsi))
         }
         
         // Mastercard Requirement #5: Total Transaction amount and currency

@@ -41,10 +41,11 @@ public interface PaymentApiService {
         }
 
         private String maskCardNumber(String cardNumber) {
-            if (cardNumber == null || cardNumber.length() < 6) {
+            if (cardNumber == null || cardNumber.length() < 10) {
                 return "****";
             }
-            return cardNumber.substring(0, 4) + "****" + cardNumber.substring(cardNumber.length() - 4);
+            // Always show first 6 digits and last 4 digits
+            return cardNumber.substring(0, 6) + "****" + cardNumber.substring(cardNumber.length() - 4);
         }
     }
 
@@ -60,6 +61,7 @@ public interface PaymentApiService {
         public String[] responseValues; // EMV response values (for importOnlineProcStatus)
         public String message; // Response message/description
         public Throwable error; // Error if request failed
+        public boolean isBankDecline; // true if decline came from bank (production API), false if internal/mock
 
         public static AuthorizationResponse success(String authCode, String rrn, String[] tags, String[] values) {
             AuthorizationResponse response = new AuthorizationResponse();
@@ -70,16 +72,22 @@ public interface PaymentApiService {
             response.responseTags = tags;
             response.responseValues = values;
             response.message = "Transaction approved";
+            response.isBankDecline = false;
             return response;
         }
 
         public static AuthorizationResponse declined(String responseCode, String message) {
+            return declined(responseCode, message, false);
+        }
+
+        public static AuthorizationResponse declined(String responseCode, String message, boolean isBankDecline) {
             AuthorizationResponse response = new AuthorizationResponse();
             response.approved = false;
             response.responseCode = responseCode;
             response.message = message;
             response.responseTags = new String[0];
             response.responseValues = new String[0];
+            response.isBankDecline = isBankDecline;
             return response;
         }
 
@@ -91,6 +99,7 @@ public interface PaymentApiService {
             response.message = message;
             response.responseTags = new String[0];
             response.responseValues = new String[0];
+            response.isBankDecline = false;
             return response;
         }
 

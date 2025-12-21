@@ -222,9 +222,13 @@ public class ProcessEmvTransactionUseCase {
         if (transactionData.onlinePinBlock != null &&
                 transactionData.onlinePinBlock.length > 0) {
 
-            String pinBlockHex = ByteUtil.bytes2HexStr(transactionData.onlinePinBlock);
-            request.pinBlock = pinBlockHex.getBytes();
+            // Store PIN block as bytes directly (8 bytes) - don't convert to hex string
+            // The ISO 8583 packer will convert to hex when needed
+            request.pinBlock = transactionData.onlinePinBlock;
             request.ksn = transactionData.ksn;
+
+            // For logging, convert to hex
+            String pinBlockHex = ByteUtil.bytes2HexStr(transactionData.onlinePinBlock);
 
             if (cvmResult.shouldSendPinToBackend) {
                 LogUtil.e(TAG, "✓ Including PIN block in authorization request (" + cvmResult.description + ")");

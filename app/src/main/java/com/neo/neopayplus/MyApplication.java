@@ -147,6 +147,23 @@ public class MyApplication extends Application {
             return false;
         }
 
+        // Check network and register retry if unavailable
+        com.neo.neopayplus.utils.NetworkMonitor networkMonitor = com.neo.neopayplus.utils.NetworkMonitor
+                .getInstance(this);
+
+        if (!networkMonitor.isNetworkAvailable()) {
+            LogUtil.e(Constant.TAG, "⚠️ Network unavailable - will retry TMK provisioning when network reconnects");
+            networkMonitor.registerRetryOperation(new Runnable() {
+                @Override
+                public void run() {
+                    if (emvOptV2 != null && securityOptV2 != null) {
+                        initializeMasterSessionKeys(securityOptV2);
+                    }
+                }
+            });
+            return false;
+        }
+
         try {
             String terminalId = com.neo.neopayplus.config.PaymentConfig.getTerminalId();
 
@@ -184,6 +201,24 @@ public class MyApplication extends Application {
             return true;
         } catch (Exception e) {
             com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "TMK provisioning", e);
+
+            // Check if error is network-related and register retry
+            if (e instanceof java.net.UnknownHostException ||
+                    e instanceof java.net.ConnectException ||
+                    e instanceof java.io.IOException) {
+                LogUtil.e(Constant.TAG,
+                        "⚠️ Network error detected - will retry TMK provisioning when network reconnects");
+                com.neo.neopayplus.utils.NetworkMonitor.getInstance(this)
+                        .registerRetryOperation(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (emvOptV2 != null && securityOptV2 != null) {
+                                    initializeMasterSessionKeys(securityOptV2);
+                                }
+                            }
+                        });
+            }
+
             return false;
         }
     }
@@ -195,6 +230,24 @@ public class MyApplication extends Application {
     private boolean provisionSessionKeysFromBackend(com.neo.neopayplus.emv.KeyManager keyManager) {
         PaymentApiService apiService = PaymentApiFactory.getInstance();
         if (!apiService.isAvailable()) {
+            return false;
+        }
+
+        // Check network and register retry if unavailable
+        com.neo.neopayplus.utils.NetworkMonitor networkMonitor = com.neo.neopayplus.utils.NetworkMonitor
+                .getInstance(this);
+
+        if (!networkMonitor.isNetworkAvailable()) {
+            LogUtil.e(Constant.TAG, "⚠️ Network unavailable - will retry TPK provisioning when network reconnects");
+            networkMonitor.registerRetryOperation(new Runnable() {
+                @Override
+                public void run() {
+                    if (emvOptV2 != null && securityOptV2 != null) {
+                        com.neo.neopayplus.emv.KeyManager km = com.neo.neopayplus.app.di.ServiceLocator.keyManager();
+                        provisionSessionKeysFromBackend(km);
+                    }
+                }
+            });
             return false;
         }
 
@@ -213,21 +266,50 @@ public class MyApplication extends Application {
             String tpkKcv = response.tpkKcv != null ? response.tpkKcv : "";
             com.neo.neopayplus.emv.KeyManager.KeyStatus tpkStatus = keyManager.importWrappedTpk(wrappedTpk, tpkKcv);
 
-            // Save key metadata
+            // Save key metadata (including wrapped TPK for testing/decryption)
             String pinKeyId = response.pinKeyId;
             if (pinKeyId == null || pinKeyId.isEmpty()) {
                 KeyRegistry.KeyState current = KeyRegistry.current();
                 pinKeyId = current.getPinKeyId();
             }
 
+            // Log wrapped TPK for testing (encrypted under TMK - needs TMK to decrypt)
+            LogUtil.e(Constant.TAG, "=== TPK Provisioning Details (for testing) ===");
+            LogUtil.e(Constant.TAG, "✓ Wrapped TPK (encrypted under TMK): " + response.wrappedTpk);
+            LogUtil.e(Constant.TAG, "✓ TPK KCV: " + tpkKcv);
+            LogUtil.e(Constant.TAG, "✓ PIN Key ID: " + pinKeyId);
+            LogUtil.e(Constant.TAG, "⚠️ SECURITY NOTE: Wrapped TPK is encrypted under TMK.");
+            LogUtil.e(Constant.TAG, "  To decrypt: Use TMK to unwrap, then use TPK to decrypt PIN blocks.");
+
             KeyRegistry.save(new KeyRegistry.KeyState(
                     pinKeyId,
                     tpkStatus.getKcv(),
+                    response.wrappedTpk, // Store wrapped TPK for testing
                     System.currentTimeMillis()));
 
             return true;
         } catch (Exception e) {
             com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Backend session key provisioning", e);
+
+            // Check if error is network-related and register retry
+            if (e instanceof java.net.UnknownHostException ||
+                    e instanceof java.net.ConnectException ||
+                    e instanceof java.io.IOException) {
+                LogUtil.e(Constant.TAG,
+                        "⚠️ Network error detected - will retry TPK provisioning when network reconnects");
+                com.neo.neopayplus.utils.NetworkMonitor.getInstance(this)
+                        .registerRetryOperation(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (emvOptV2 != null && securityOptV2 != null) {
+                                    com.neo.neopayplus.emv.KeyManager km = com.neo.neopayplus.app.di.ServiceLocator
+                                            .keyManager();
+                                    provisionSessionKeysFromBackend(km);
+                                }
+                            }
+                        });
+            }
+
             return false;
         }
     }
@@ -265,6 +347,9 @@ public class MyApplication extends Application {
                 // access)
                 loadTerminalConfigFromCache();
 
+                // Load ISO socket config from cache
+                com.neo.neopayplus.config.PaymentConfig.loadIsoSocketConfigFromCache();
+
                 // Sign-on is handled via PaymentApiService when needed
                 com.neo.neopayplus.utils.LogUtil.e(Constant.TAG, "Host sign-on OK");
 
@@ -275,6 +360,9 @@ public class MyApplication extends Application {
                 com.neo.neopayplus.utils.ErrorHandler.logError(Constant.TAG, "Background initialization", e);
             }
         }).start();
+
+        // Initialize network monitor
+        com.neo.neopayplus.utils.NetworkMonitor.getInstance(this).startMonitoring();
 
         // Fetch terminal config from backend (already async, uses callbacks)
         fetchTerminalConfig();
@@ -727,6 +815,24 @@ public class MyApplication extends Application {
             return;
         }
 
+        // Check network and register retry if unavailable
+        com.neo.neopayplus.utils.NetworkMonitor networkMonitor = com.neo.neopayplus.utils.NetworkMonitor
+                .getInstance(this);
+
+        if (!networkMonitor.isNetworkAvailable()) {
+            LogUtil.e(Constant.TAG, "⚠️ Network unavailable - will retry config fetch when network reconnects");
+            networkMonitor.registerRetryOperation(new Runnable() {
+                @Override
+                public void run() {
+                    fetchTerminalConfig();
+                }
+            });
+            if (terminalConfig == null) {
+                terminalConfig = new TerminalConfig();
+            }
+            return;
+        }
+
         configApi.loadEmvConfiguration(new EmvConfigApiService.EmvConfigCallback() {
             @Override
             public void onConfigLoaded(EmvConfigApiService.EmvConfigResponse response) {
@@ -773,6 +879,16 @@ public class MyApplication extends Application {
             @Override
             public void onConfigError(Throwable error) {
                 LogUtil.e(Constant.TAG, "❌ Failed to fetch terminal config from backend: " + error.getMessage());
+
+                // Check if error is network-related and register retry
+                if (error instanceof java.net.UnknownHostException ||
+                        error instanceof java.net.ConnectException ||
+                        error instanceof java.io.IOException) {
+                    LogUtil.e(Constant.TAG, "⚠️ Network error detected - will retry when network reconnects");
+                    com.neo.neopayplus.utils.NetworkMonitor.getInstance(MyApplication.this)
+                            .registerRetryOperation(() -> fetchTerminalConfig());
+                }
+
                 LogUtil.e(Constant.TAG, "⚠️ Using cached/default config");
                 if (terminalConfig == null) {
                     terminalConfig = new TerminalConfig();

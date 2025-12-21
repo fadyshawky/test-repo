@@ -122,6 +122,95 @@ public class PaymentConfig {
      */
     public static final String CURRENCY_NAME = "EGP";
 
+    // ==================== ISO 8583 SOCKET CONFIGURATION ====================
+
+    /**
+     * ISO 8583 Socket Host
+     * Host address for ISO 8583 socket communication (per MsgSpec v341)
+     * Format: IP address or hostname
+     * 
+     * DYNAMIC: Can be loaded from backend configuration
+     * Default: null (use HTTP/JSON if not configured)
+     */
+    public static String ISO_SOCKET_HOST = null; // e.g., "192.168.1.100" or "iso-gateway.example.com"
+
+    /**
+     * ISO 8583 Socket Port
+     * Port number for ISO 8583 socket communication
+     * 
+     * DYNAMIC: Can be loaded from backend configuration
+     * Default: 0 (use HTTP/JSON if not configured)
+     */
+    public static int ISO_SOCKET_PORT = 0; // e.g., 5000
+
+    /**
+     * ISO 8583 Destination Address (Network International Identifier)
+     * 2-byte address for TPDU header
+     * Per MsgSpec v341 section 4.1.1.1
+     */
+    public static final byte[] ISO_DESTINATION_ADDRESS = new byte[] { 0x00, 0x00 }; // Default: 0x0000
+
+    /**
+     * Check if ISO socket mode is enabled
+     * 
+     * @return true if ISO socket host and port are configured
+     */
+    public static boolean isIsoSocketMode() {
+        return ISO_SOCKET_HOST != null && !ISO_SOCKET_HOST.isEmpty() && ISO_SOCKET_PORT > 0;
+    }
+
+    /**
+     * Load ISO socket configuration from cache (SharedPreferences)
+     * Called on app startup to restore configuration
+     */
+    public static void loadIsoSocketConfigFromCache() {
+        try {
+            String cachedHost = com.neo.neopayplus.utils.PreferencesUtil.getTerminalConfig("iso_socket_host", null);
+            String cachedPortStr = com.neo.neopayplus.utils.PreferencesUtil.getTerminalConfig("iso_socket_port", null);
+
+            if (cachedHost != null && cachedPortStr != null) {
+                try {
+                    int cachedPort = Integer.parseInt(cachedPortStr);
+                    if (cachedPort > 0) {
+                        ISO_SOCKET_HOST = cachedHost;
+                        ISO_SOCKET_PORT = cachedPort;
+                        LogUtil.e(TAG, "✓ ISO Socket config loaded from cache:");
+                        LogUtil.e(TAG, "  Host: " + ISO_SOCKET_HOST);
+                        LogUtil.e(TAG, "  Port: " + ISO_SOCKET_PORT);
+                    }
+                } catch (NumberFormatException e) {
+                    LogUtil.e(TAG, "⚠️ Invalid cached ISO socket port: " + cachedPortStr);
+                }
+            }
+        } catch (Exception e) {
+            LogUtil.e(TAG, "⚠️ Error loading ISO socket config from cache: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Save ISO socket configuration to cache (SharedPreferences)
+     * Called when configuration is received from backend
+     * 
+     * @param host ISO socket host address
+     * @param port ISO socket port number
+     */
+    public static void saveIsoSocketConfigToCache(String host, int port) {
+        try {
+            if (host != null && !host.isEmpty() && port > 0) {
+                com.neo.neopayplus.utils.PreferencesUtil.saveTerminalConfig("iso_socket_host", host);
+                com.neo.neopayplus.utils.PreferencesUtil.saveTerminalConfig("iso_socket_port", String.valueOf(port));
+                LogUtil.e(TAG, "✓ ISO Socket config saved to cache");
+            } else {
+                // Clear cache if disabled
+                com.neo.neopayplus.utils.PreferencesUtil.saveTerminalConfig("iso_socket_host", "");
+                com.neo.neopayplus.utils.PreferencesUtil.saveTerminalConfig("iso_socket_port", "0");
+                LogUtil.e(TAG, "✓ ISO Socket config cleared from cache");
+            }
+        } catch (Exception e) {
+            LogUtil.e(TAG, "⚠️ Error saving ISO socket config to cache: " + e.getMessage());
+        }
+    }
+
     /**
      * Terminal Serial Number (9F1E)
      * Format: Hex string representation of terminal serial (e.g.,

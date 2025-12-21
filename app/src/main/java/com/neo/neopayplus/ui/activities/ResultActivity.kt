@@ -52,6 +52,10 @@ class ResultActivity : ComponentActivity() {
             if (intent.hasExtra("receiptNumber")) putExtra("receiptNumber", intent.getStringExtra("receiptNumber"))
             if (intent.hasExtra("bankTerminalId")) putExtra("bankTerminalId", intent.getStringExtra("bankTerminalId"))
             if (intent.hasExtra("bankMerchantId")) putExtra("bankMerchantId", intent.getStringExtra("bankMerchantId"))
+            if (intent.hasExtra("isBankDecline")) putExtra("isBankDecline", intent.getBooleanExtra("isBankDecline", false))
+            if (intent.hasExtra("tvr")) putExtra("tvr", intent.getStringExtra("tvr"))
+            if (intent.hasExtra("tsi")) putExtra("tsi", intent.getStringExtra("tsi"))
+            if (intent.hasExtra("maskedExpiryDate")) putExtra("maskedExpiryDate", intent.getStringExtra("maskedExpiryDate"))
         }
         startActivity(receiptIntent)
         finish() // Finish ResultActivity after navigating
@@ -89,9 +93,9 @@ class ResultActivity : ComponentActivity() {
                         }
                     )
                     
-                    // Auto-navigate to ReceiptActivity after 2 seconds
+                    // Auto-navigate to ReceiptActivity after 1 second
                     LaunchedEffect(Unit) {
-                        delay(2000) // 2 seconds delay
+                        delay(1000) // 1 second delay
                         navigateToReceipt()
                     }
                 }

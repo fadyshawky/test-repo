@@ -99,6 +99,12 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
     // API response data (for receipt)
     private PaymentApiService.AuthorizationResponse apiResponse = null;
 
+    // TVR and TSI extracted from Field 55 (EMV data sent to backend)
+    private String tvrFromField55 = null;
+    private String tsiFromField55 = null;
+    // Field 55 hex string (for extracting PAN later)
+    private String field55Hex = null;
+
     // Amount entry state
     private StringBuilder amountDigits = new StringBuilder();
     private static final int MAX_AMOUNT_DIGITS = 9;
@@ -628,10 +634,24 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                 if (result instanceof PinPadManager.PinResult.OnlineSuccess) {
                     PinPadManager.PinResult.OnlineSuccess success = (PinPadManager.PinResult.OnlineSuccess) result;
 
+                    // Update currentPinType to reflect that PIN was entered
+                    currentPinType = 0; // Online PIN
+                    Log.e(TAG, "✓ PIN entered successfully - updated currentPinType to ONLINE_PIN (0)");
+
+                    // Always store PIN block when available (for both manual and kernel-requested
+                    // PIN)
+                    // This ensures the PIN block is included in the ISO 8583 message
+                    byte[] pinBlock = success.getPinBlock();
+                    if (pinBlock != null && pinBlock.length > 0) {
+                        manualPinBlock = pinBlock;
+                        Log.e(TAG, "✓ PIN block stored for ISO 8583 message (length: " + pinBlock.length + " bytes)");
+                    } else {
+                        Log.e(TAG, "⚠️ PIN block is null or empty - will not be included in ISO 8583 message");
+                    }
+
                     if (isManualPinEntry) {
-                        // Manual PIN: Store PIN block and proceed directly to online auth
+                        // Manual PIN: Proceed directly to online auth
                         Log.e(TAG, "Manual PIN collected successfully");
-                        manualPinBlock = success.getPinBlock();
                         emvHandler.clearManualPinFlag();
                         handleOnlineProcess();
                     } else {
@@ -639,6 +659,10 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                         emvHandler.importPinInputStatus(actualPinType, 0); // Success
                     }
                 } else if (result instanceof PinPadManager.PinResult.OfflineSuccess) {
+                    // Update currentPinType to reflect that offline PIN was entered
+                    currentPinType = 1; // Offline PIN
+                    Log.e(TAG, "✓ Offline PIN entered successfully - updated currentPinType to OFFLINE_PIN (1)");
+
                     if (isManualPinEntry) {
                         emvHandler.clearManualPinFlag();
                         handleOnlineProcess();
@@ -646,6 +670,9 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                         emvHandler.importPinInputStatus(actualPinType, 0); // Success
                     }
                 } else if (result instanceof PinPadManager.PinResult.Bypassed) {
+                    // PIN was bypassed - keep currentPinType as -1 (no PIN)
+                    Log.e(TAG, "PIN bypassed - currentPinType remains NO_PIN (-1)");
+
                     if (isManualPinEntry) {
                         Log.e(TAG, "Manual PIN bypassed - proceeding without PIN");
                         manualPinBlock = null;
@@ -655,6 +682,9 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                         emvHandler.importPinInputStatus(actualPinType, 2); // Bypassed
                     }
                 } else if (result instanceof PinPadManager.PinResult.Cancelled) {
+                    // PIN was cancelled - keep currentPinType as -1 (no PIN)
+                    Log.e(TAG, "PIN cancelled - currentPinType remains NO_PIN (-1)");
+
                     if (isManualPinEntry) {
                         // User cancelled - abort transaction
                         Log.e(TAG, "Manual PIN cancelled by user");
@@ -663,6 +693,9 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                         emvHandler.importPinInputStatus(actualPinType, 1); // Cancelled
                     }
                 } else {
+                    // PIN entry failed - keep currentPinType as -1 (no PIN)
+                    Log.e(TAG, "PIN entry failed - currentPinType remains NO_PIN (-1)");
+
                     if (isManualPinEntry) {
                         Log.e(TAG, "Manual PIN failed");
                         showError("PIN entry failed");
@@ -733,7 +766,45 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                 );
 
                 Log.e(TAG, "Field 55 built: " + field55.length + " bytes");
-                String field55Hex = ByteUtil.bytes2HexStr(field55, 0, field55.length);
+                field55Hex = ByteUtil.bytes2HexStr(field55, 0, field55.length);
+
+                // Extract TVR (tag 95), TSI (tag 9B), and Expiry Date (tag 59) from Field 55
+                // (EMV data sent to
+                // backend)
+                try {
+                    java.util.Map<String, com.neo.neopayplus.emv.TLV> tlvMap = com.neo.neopayplus.emv.TLVUtil
+                            .buildTLVMap(field55);
+                    com.neo.neopayplus.emv.TLV tvrTlv = tlvMap.get("95");
+                    com.neo.neopayplus.emv.TLV tsiTlv = tlvMap.get("9B");
+                    com.neo.neopayplus.emv.TLV expiry59Tlv = tlvMap.get("59");
+
+                    if (tvrTlv != null) {
+                        tvrFromField55 = tvrTlv.getValue();
+                        Log.e(TAG, "✓ TVR (95) extracted from Field 55: " + tvrFromField55);
+                    } else {
+                        Log.e(TAG, "⚠️ TVR (95) not found in Field 55");
+                    }
+                    if (tsiTlv != null) {
+                        tsiFromField55 = tsiTlv.getValue();
+                        Log.e(TAG, "✓ TSI (9B) extracted from Field 55: " + tsiFromField55);
+                    } else {
+                        Log.e(TAG, "⚠️ TSI (9B) not found in Field 55");
+                    }
+                    if (expiry59Tlv != null && expiry59Tlv.getValue() != null && !expiry59Tlv.getValue().isEmpty()) {
+                        String expiry59Hex = expiry59Tlv.getValue();
+                        String expiry59Display = expiry59Hex.toUpperCase().replaceAll("F+$", "");
+                        if (expiry59Display.length() >= 4) {
+                            String yy = expiry59Display.substring(0, 2);
+                            String mm = expiry59Display.substring(2, 4);
+                            Log.e(TAG, "✓ Expiry date (59) present in Field 55 (unmasked for backend): " + mm + "/" + yy
+                                    + " (hex: " + expiry59Hex + ")");
+                        }
+                    } else {
+                        Log.e(TAG, "⚠️ Expiry date (59) not found in Field 55");
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "❌ Failed to extract TVR/TSI/Expiry from Field 55: " + e.getMessage());
+                }
 
                 // Read transaction data
                 String pan = emvHandler.getCurrentPan();
@@ -908,6 +979,171 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
             }
         }
 
+        // Extract TVR, TSI, and PAN directly from EMV kernel (not from Field 55 or
+        // response)
+        String tvr = null;
+        String tsi = null;
+        String receiptPan = null;
+
+        // Read TVR (Terminal Verification Results, tag 95) from EMV kernel
+        try {
+            tvr = emvHandler.readTlv("95");
+            if (tvr != null && !tvr.isEmpty()) {
+                Log.e(TAG, "✓ TVR (95) extracted from EMV kernel: " + tvr);
+            } else {
+                Log.e(TAG, "⚠️ TVR (95) not found in EMV kernel");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to read TVR (95) from EMV kernel: " + e.getMessage());
+        }
+
+        // Read TSI (Transaction Status Information, tag 9B) from EMV kernel
+        try {
+            tsi = emvHandler.readTlv("9B");
+            if (tsi != null && !tsi.isEmpty()) {
+                Log.e(TAG, "✓ TSI (9B) extracted from EMV kernel: " + tsi);
+            } else {
+                Log.e(TAG, "⚠️ TSI (9B) not found in EMV kernel");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to read TSI (9B) from EMV kernel: " + e.getMessage());
+        }
+
+        // Extract PAN from EMV kernel (tag 5A, 57, or 9F6B)
+        try {
+            // Try tag 5A (PAN) first
+            String pan5A = emvHandler.readTlv("5A");
+            if (pan5A != null && !pan5A.isEmpty()) {
+                // PAN is BCD encoded, remove trailing 'F' padding
+                receiptPan = pan5A.toUpperCase().replaceAll("F+$", "");
+                Log.e(TAG, "✓ PAN extracted from EMV kernel tag 5A: " + maskPan(receiptPan));
+            } else {
+                // Try tag 57 (Track 2 Equivalent Data)
+                String pan57 = emvHandler.readTlv("57");
+                if (pan57 != null && !pan57.isEmpty()) {
+                    String track2Hex = pan57.toUpperCase();
+                    // Track 2 format: PAN + 'D' + ExpiryDate + ServiceCode + ...
+                    int delimiterIndex = track2Hex.indexOf('D');
+                    if (delimiterIndex > 0) {
+                        String panHex = track2Hex.substring(0, delimiterIndex);
+                        receiptPan = panHex.replaceAll("F+$", ""); // Remove trailing 'F' padding
+                        Log.e(TAG, "✓ PAN extracted from EMV kernel tag 57: " + maskPan(receiptPan));
+                    }
+                } else {
+                    // Try tag 9F6B (Contactless Track 2 Data)
+                    String pan9F6B = emvHandler.readTlv("9F6B");
+                    if (pan9F6B != null && !pan9F6B.isEmpty()) {
+                        String track2Hex = pan9F6B.toUpperCase();
+                        int delimiterIndex = track2Hex.indexOf('D');
+                        if (delimiterIndex > 0) {
+                            String panHex = track2Hex.substring(0, delimiterIndex);
+                            receiptPan = panHex.replaceAll("F+$", ""); // Remove trailing 'F' padding
+                            Log.e(TAG, "✓ PAN extracted from EMV kernel tag 9F6B: " + maskPan(receiptPan));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to extract PAN from EMV kernel: " + e.getMessage());
+        }
+
+        // Fallback to currentPan if extraction failed
+        if (receiptPan == null || receiptPan.isEmpty()) {
+            receiptPan = currentPan;
+            Log.e(TAG, "⚠️ Using currentPan as fallback: " + (receiptPan != null ? maskPan(receiptPan) : "null"));
+        }
+
+        // Extract expiry date from EMV kernel
+        // Priority: tag 59 (Card expiration date) -> tag 5F24 (Application Expiration
+        // Date) -> Track 2 (57/9F6B)
+        String expiryDate = null;
+        String maskedExpiryDate = null;
+        try {
+            // Try tag 59 first (Card expiration date - YYMM format)
+            String expiry59 = emvHandler.readTlv("59");
+            if (expiry59 != null && !expiry59.isEmpty()) {
+                // Tag 59 is BCD encoded: YYMM (4 hex chars = 2 bytes)
+                expiryDate = expiry59.toUpperCase().replaceAll("F+$", "");
+                if (expiryDate.length() >= 4) {
+                    String yy = expiryDate.substring(0, 2);
+                    String mm = expiryDate.substring(2, 4);
+                    maskedExpiryDate = "**/**";
+                    Log.e(TAG, "✓ Expiry date (59) extracted from EMV kernel: " + maskedExpiryDate + " (unmasked: "
+                            + expiryDate + ")");
+                }
+            }
+
+            // Fallback to tag 5F24 (Application Expiration Date - YYMMDD format)
+            if (expiryDate == null || expiryDate.length() < 4) {
+                String expiry5F24 = emvHandler.readTlv("5F24");
+                if (expiry5F24 != null && !expiry5F24.isEmpty()) {
+                    // Tag 5F24 is BCD encoded: YYMMDD (6 hex chars = 3 bytes)
+                    String expiry5F24Clean = expiry5F24.toUpperCase().replaceAll("F+$", "");
+                    if (expiry5F24Clean.length() >= 4) {
+                        // Extract YYMM from YYMMDD
+                        expiryDate = expiry5F24Clean.substring(0, 4);
+                        String yy = expiryDate.substring(0, 2);
+                        String mm = expiryDate.substring(2, 4);
+                        maskedExpiryDate = "**/**";
+                        Log.e(TAG,
+                                "✓ Expiry date (5F24) extracted from EMV kernel: " + maskedExpiryDate + " (unmasked: "
+                                        + expiryDate + ")");
+                    }
+                }
+            }
+
+            // Fallback to Track 2 data (tag 57 or 9F6B) - format: PAN + 'D' +
+            // ExpiryDate(YYMM) + ServiceCode
+            if (expiryDate == null || expiryDate.length() < 4) {
+                // Try tag 57 (Track 2 Equivalent Data)
+                String track257 = emvHandler.readTlv("57");
+                if (track257 != null && !track257.isEmpty()) {
+                    String track2Hex = track257.toUpperCase();
+                    int delimiterIndex = track2Hex.indexOf('D');
+                    if (delimiterIndex > 0 && track2Hex.length() > delimiterIndex + 4) {
+                        // Extract 4 hex chars after 'D' separator (YYMM)
+                        String expiryHex = track2Hex.substring(delimiterIndex + 1, delimiterIndex + 5);
+                        expiryDate = expiryHex.replaceAll("F+$", "");
+                        if (expiryDate.length() >= 4) {
+                            String yy = expiryDate.substring(0, 2);
+                            String mm = expiryDate.substring(2, 4);
+                            maskedExpiryDate = "**/**";
+                            Log.e(TAG, "✓ Expiry date extracted from Track 2 (57): " + maskedExpiryDate + " (unmasked: "
+                                    + expiryDate + ")");
+                        }
+                    }
+                }
+
+                // Try tag 9F6B (Contactless Track 2 Data)
+                if (expiryDate == null || expiryDate.length() < 4) {
+                    String track29F6B = emvHandler.readTlv("9F6B");
+                    if (track29F6B != null && !track29F6B.isEmpty()) {
+                        String track2Hex = track29F6B.toUpperCase();
+                        int delimiterIndex = track2Hex.indexOf('D');
+                        if (delimiterIndex > 0 && track2Hex.length() > delimiterIndex + 4) {
+                            String expiryHex = track2Hex.substring(delimiterIndex + 1, delimiterIndex + 5);
+                            expiryDate = expiryHex.replaceAll("F+$", "");
+                            if (expiryDate.length() >= 4) {
+                                String yy = expiryDate.substring(0, 2);
+                                String mm = expiryDate.substring(2, 4);
+                                maskedExpiryDate = "**/**";
+                                Log.e(TAG,
+                                        "✓ Expiry date extracted from Track 2 (9F6B): " + maskedExpiryDate
+                                                + " (unmasked: "
+                                                + expiryDate + ")");
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (expiryDate == null || expiryDate.length() < 4) {
+                Log.e(TAG, "⚠️ Expiry date not found in EMV kernel (tried tags 59, 5F24, 57, 9F6B)");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to extract expiry date from EMV kernel: " + e.getMessage());
+        }
+
         // Get STAN from ViewModel
         EmvPaymentViewModel.UiState currentState = viewModel.getUiStateLiveData().getValue();
         int stan = currentState != null ? currentState.getStan() : currentStan;
@@ -920,16 +1156,20 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         intent.putExtra("rrn", rrn != null ? rrn : "");
         intent.putExtra("amount", currentAmount);
         intent.putExtra("currency", "EGP");
-        intent.putExtra("cardPan", currentPan != null ? currentPan : "");
+        intent.putExtra("cardPan", receiptPan != null ? receiptPan : "");
         intent.putExtra("aid", selectedAid != null ? selectedAid : "");
         intent.putExtra("applicationPreferredName", applicationPreferredName != null ? applicationPreferredName : "");
         intent.putExtra("entryMode", entryMode);
         intent.putExtra("transactionType", "SALE"); // TODO: Support REFUND/VOID
         intent.putExtra("authCode", authCode != null ? authCode : "");
+        intent.putExtra("tvr", tvr != null ? tvr : "");
+        intent.putExtra("tsi", tsi != null ? tsi : "");
+        intent.putExtra("maskedExpiryDate", maskedExpiryDate != null ? maskedExpiryDate : "");
 
         // Log what we're passing
         Log.e(TAG, "Passing to ResultActivity - amount: " + currentAmount + ", rrn: " + rrn + ", authCode: " + authCode
-                + ", aid: " + selectedAid);
+                + ", aid: " + selectedAid + ", pan: " + (receiptPan != null ? maskPan(receiptPan) : "null") + ", tvr: "
+                + tvr + ", tsi: " + tsi);
         intent.putExtra("responseCode", "00");
         intent.putExtra("responseMessage", "APPROVED");
         intent.putExtra("stan", stan);
@@ -941,6 +1181,7 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
     private void handleTransactionFailed(String desc, int code) {
         // Update ViewModel state
         viewModel.setProcessing(false);
+        cardDetectionStarted = false;
         progressBar.setVisibility(View.GONE);
         btnCancel.setText(getString(R.string.back));
         btnCancel.setVisibility(View.VISIBLE);
@@ -949,11 +1190,327 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         tvStatus.setText(getString(R.string.declined_format, errorMsg, code));
         ivCardIcon.setImageResource(R.drawable.ic_error);
 
-        // Navigate to result
+        // Extract PAN if not already set (for declined transactions, PAN might not be
+        // extracted yet)
+        if (currentPan == null || currentPan.isEmpty()) {
+            try {
+                // Try to get PAN from EMV handler
+                String pan = emvHandler.getCurrentPan();
+
+                // Fallback: Try to read directly from EMV kernel TLV tags
+                if (pan == null || pan.isEmpty()) {
+                    Log.e(TAG, "PAN not in currentPan, trying TLV tag 5A...");
+                    pan = emvHandler.readTlv("5A");
+                    if (pan != null && !pan.isEmpty()) {
+                        // Clean up PAN - remove 'F' padding
+                        pan = pan.toUpperCase().replace("F", "");
+                        Log.e(TAG, "PAN extracted from TLV 5A (declined): " + maskPan(pan));
+                    }
+                }
+
+                // Fallback: Try Track 2 Equivalent Data (tag 57)
+                if (pan == null || pan.isEmpty()) {
+                    Log.e(TAG, "Trying TLV tag 57 (Track 2) for declined transaction...");
+                    String track2 = emvHandler.readTlv("57");
+                    if (track2 != null && !track2.isEmpty()) {
+                        track2 = track2.toUpperCase();
+                        int separatorIdx = track2.indexOf('D');
+                        if (separatorIdx > 0) {
+                            pan = track2.substring(0, separatorIdx).replace("F", "");
+                            Log.e(TAG, "PAN extracted from TLV 57 (declined): " + maskPan(pan));
+                        }
+                    }
+                }
+
+                // Fallback: Try contactless Track 2 (tag 9F6B)
+                if (pan == null || pan.isEmpty()) {
+                    Log.e(TAG, "Trying TLV tag 9F6B (Contactless Track 2) for declined transaction...");
+                    String track2 = emvHandler.readTlv("9F6B");
+                    if (track2 != null && !track2.isEmpty()) {
+                        track2 = track2.toUpperCase();
+                        int separatorIdx = track2.indexOf('D');
+                        if (separatorIdx > 0) {
+                            pan = track2.substring(0, separatorIdx).replace("F", "");
+                            Log.e(TAG, "PAN extracted from TLV 9F6B (declined): " + maskPan(pan));
+                        }
+                    }
+                }
+
+                if (pan != null && !pan.isEmpty()) {
+                    currentPan = pan;
+                    Log.e(TAG, "PAN set for declined receipt: " + maskPan(currentPan));
+                } else {
+                    Log.e(TAG, "WARNING: Could not extract PAN for declined receipt - all methods failed");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to extract PAN for declined receipt: " + e.getMessage());
+            }
+        }
+
+        // Read RRN if available (might be available even for declined transactions)
+        String rrn = null;
+        try {
+            rrn = emvHandler.readTlv("9F26"); // Application Cryptogram as RRN fallback
+            if (rrn == null || rrn.isEmpty()) {
+                // Try to get from API response if available
+                if (apiResponse != null) {
+                    rrn = apiResponse.rrn;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read RRN: " + e.getMessage());
+        }
+
+        // Read Application Preferred Name (tag 50) for chip transactions
+        String applicationPreferredName = null;
+        if (currentCardType != AidlConstants.CardType.NFC.getValue()) {
+            // For chip transactions, read tag 50
+            try {
+                String tag50Hex = emvHandler.readTlv("50");
+                if (tag50Hex != null && !tag50Hex.isEmpty()) {
+                    // Tag 50 is ASCII text, convert from hex
+                    byte[] tag50Bytes = com.neo.neopayplus.utils.ByteUtil.hexStr2Bytes(tag50Hex);
+                    applicationPreferredName = new String(tag50Bytes, "UTF-8").trim();
+                    Log.e(TAG, "Application Preferred Name (50): " + applicationPreferredName);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to read Application Preferred Name (50): " + e.getMessage());
+            }
+        }
+
+        // Determine entry mode - use AidlConstants (same as EMVHandler) not
+        // AidlConstantsV2
+        String entryMode = (currentCardType == AidlConstants.CardType.NFC.getValue()) ? "CONTACTLESS" : "IC";
+        Log.e(TAG, "Entry mode determined (declined) - currentCardType: " + currentCardType + ", NFC value: "
+                + AidlConstants.CardType.NFC.getValue() + ", entryMode: " + entryMode);
+
+        // Read AID from TLV if not already captured
+        if (selectedAid == null || selectedAid.isEmpty()) {
+            try {
+                // Try to read AID from TLV (tag 4F or 9F06)
+                String aidFromTlv = emvHandler.readTlv("4F");
+                if (aidFromTlv == null || aidFromTlv.isEmpty()) {
+                    aidFromTlv = emvHandler.readTlv("9F06");
+                }
+                if (aidFromTlv != null && !aidFromTlv.isEmpty()) {
+                    selectedAid = aidFromTlv;
+                    Log.e(TAG, "Read AID from TLV (declined): " + selectedAid);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to read AID from TLV: " + e.getMessage());
+            }
+        }
+
+        // Determine CVM method
+        String cvmMethod = "NO_PIN";
+        if (signatureRequired) {
+            cvmMethod = "SIGNATURE";
+        } else if (currentPinType == 0) {
+            cvmMethod = "ONLINE_PIN";
+        } else if (currentPinType == 1) {
+            cvmMethod = "OFFLINE_PIN";
+        }
+
+        // Get STAN from ViewModel
+        EmvPaymentViewModel.UiState currentState = viewModel.getUiStateLiveData().getValue();
+        int stan = currentState != null ? currentState.getStan() : currentStan;
+
+        // Navigate to result with full transaction data (same as approved)
         Intent intent = new Intent(this, ResultActivity.class);
         intent.putExtra("approved", false);
         intent.putExtra("rc", String.valueOf(code));
         intent.putExtra("msg", errorMsg);
+        intent.putExtra("rrn", rrn != null ? rrn : "");
+        intent.putExtra("amount", currentAmount);
+        intent.putExtra("currency", "EGP");
+        intent.putExtra("cardPan", currentPan != null ? currentPan : "");
+        intent.putExtra("aid", selectedAid != null ? selectedAid : "");
+        intent.putExtra("applicationPreferredName", applicationPreferredName != null ? applicationPreferredName : "");
+        intent.putExtra("entryMode", entryMode);
+        intent.putExtra("transactionType", "SALE"); // TODO: Support REFUND/VOID
+        intent.putExtra("responseCode", String.valueOf(code));
+        intent.putExtra("responseMessage", errorMsg);
+        intent.putExtra("stan", stan);
+        intent.putExtra("cvmMethod", cvmMethod);
+        intent.putExtra("orderId", (String) null); // TODO: Get from transaction
+        intent.putExtra("transactionId", (String) null); // TODO: Get from transaction
+        intent.putExtra("batchNumber", (String) null); // TODO: Get from batch
+        intent.putExtra("receiptNumber", (String) null); // TODO: Get from receipt counter
+        // Check if this is a bank decline (from production API)
+        boolean isBankDecline = (apiResponse != null && apiResponse.isBankDecline);
+        intent.putExtra("isBankDecline", isBankDecline);
+        // For bank declines, use terminal config values for bank TID/MID
+        if (isBankDecline) {
+            intent.putExtra("bankTerminalId", com.neo.neopayplus.config.PaymentConfig.getTerminalId());
+            intent.putExtra("bankMerchantId", com.neo.neopayplus.config.PaymentConfig.getMerchantId());
+        } else {
+            intent.putExtra("bankTerminalId", (String) null);
+            intent.putExtra("bankMerchantId", (String) null);
+        }
+
+        // Extract TVR, TSI, and PAN directly from EMV kernel (not from Field 55 or
+        // response)
+        String tvr = null;
+        String tsi = null;
+        String receiptPan = null;
+
+        // Read TVR (Terminal Verification Results, tag 95) from EMV kernel
+        try {
+            tvr = emvHandler.readTlv("95");
+            if (tvr != null && !tvr.isEmpty()) {
+                Log.e(TAG, "✓ TVR (95) extracted from EMV kernel: " + tvr);
+            } else {
+                Log.e(TAG, "⚠️ TVR (95) not found in EMV kernel");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to read TVR (95) from EMV kernel: " + e.getMessage());
+        }
+
+        // Read TSI (Transaction Status Information, tag 9B) from EMV kernel
+        try {
+            tsi = emvHandler.readTlv("9B");
+            if (tsi != null && !tsi.isEmpty()) {
+                Log.e(TAG, "✓ TSI (9B) extracted from EMV kernel: " + tsi);
+            } else {
+                Log.e(TAG, "⚠️ TSI (9B) not found in EMV kernel");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to read TSI (9B) from EMV kernel: " + e.getMessage());
+        }
+
+        // Extract PAN from EMV kernel (tag 5A, 57, or 9F6B)
+        try {
+            // Try tag 5A (PAN) first
+            String pan5A = emvHandler.readTlv("5A");
+            if (pan5A != null && !pan5A.isEmpty()) {
+                receiptPan = pan5A.toUpperCase().replaceAll("F+$", "");
+                Log.e(TAG, "✓ PAN extracted from EMV kernel tag 5A (declined): " + maskPan(receiptPan));
+            } else {
+                // Try tag 57 (Track 2 Equivalent Data)
+                String pan57 = emvHandler.readTlv("57");
+                if (pan57 != null && !pan57.isEmpty()) {
+                    String track2Hex = pan57.toUpperCase();
+                    int delimiterIndex = track2Hex.indexOf('D');
+                    if (delimiterIndex > 0) {
+                        String panHex = track2Hex.substring(0, delimiterIndex);
+                        receiptPan = panHex.replaceAll("F+$", "");
+                        Log.e(TAG, "✓ PAN extracted from EMV kernel tag 57 (declined): " + maskPan(receiptPan));
+                    }
+                } else {
+                    // Try tag 9F6B (Contactless Track 2 Data)
+                    String pan9F6B = emvHandler.readTlv("9F6B");
+                    if (pan9F6B != null && !pan9F6B.isEmpty()) {
+                        String track2Hex = pan9F6B.toUpperCase();
+                        int delimiterIndex = track2Hex.indexOf('D');
+                        if (delimiterIndex > 0) {
+                            String panHex = track2Hex.substring(0, delimiterIndex);
+                            receiptPan = panHex.replaceAll("F+$", "");
+                            Log.e(TAG, "✓ PAN extracted from EMV kernel tag 9F6B (declined): " + maskPan(receiptPan));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to extract PAN from EMV kernel (declined): " + e.getMessage());
+        }
+
+        // Fallback to currentPan if extraction failed
+        if (receiptPan == null || receiptPan.isEmpty()) {
+            receiptPan = currentPan;
+        }
+
+        // Extract expiry date from EMV kernel (declined transaction)
+        // Priority: tag 59 (Card expiration date) -> tag 5F24 (Application Expiration
+        // Date) -> Track 2 (57/9F6B)
+        String expiryDate = null;
+        String maskedExpiryDate = null;
+        try {
+            // Try tag 59 first (Card expiration date - YYMM format)
+            String expiry59 = emvHandler.readTlv("59");
+            if (expiry59 != null && !expiry59.isEmpty()) {
+                expiryDate = expiry59.toUpperCase().replaceAll("F+$", "");
+                if (expiryDate.length() >= 4) {
+                    String yy = expiryDate.substring(0, 2);
+                    String mm = expiryDate.substring(2, 4);
+                    maskedExpiryDate = "**/**";
+                    Log.e(TAG, "✓ Expiry date (59) extracted from EMV kernel (declined): " + maskedExpiryDate
+                            + " (unmasked: " + expiryDate + ")");
+                }
+            }
+
+            // Fallback to tag 5F24 (Application Expiration Date - YYMMDD format)
+            if (expiryDate == null || expiryDate.length() < 4) {
+                String expiry5F24 = emvHandler.readTlv("5F24");
+                if (expiry5F24 != null && !expiry5F24.isEmpty()) {
+                    String expiry5F24Clean = expiry5F24.toUpperCase().replaceAll("F+$", "");
+                    if (expiry5F24Clean.length() >= 4) {
+                        expiryDate = expiry5F24Clean.substring(0, 4);
+                        String yy = expiryDate.substring(0, 2);
+                        String mm = expiryDate.substring(2, 4);
+                        maskedExpiryDate = "**/**";
+                        Log.e(TAG, "✓ Expiry date (5F24) extracted from EMV kernel (declined): " + maskedExpiryDate
+                                + " (unmasked: " + expiryDate + ")");
+                    }
+                }
+            }
+
+            // Fallback to Track 2 data (tag 57 or 9F6B)
+            if (expiryDate == null || expiryDate.length() < 4) {
+                String track257 = emvHandler.readTlv("57");
+                if (track257 != null && !track257.isEmpty()) {
+                    String track2Hex = track257.toUpperCase();
+                    int delimiterIndex = track2Hex.indexOf('D');
+                    if (delimiterIndex > 0 && track2Hex.length() > delimiterIndex + 4) {
+                        String expiryHex = track2Hex.substring(delimiterIndex + 1, delimiterIndex + 5);
+                        expiryDate = expiryHex.replaceAll("F+$", "");
+                        if (expiryDate.length() >= 4) {
+                            String yy = expiryDate.substring(0, 2);
+                            String mm = expiryDate.substring(2, 4);
+                            maskedExpiryDate = "**/**";
+                            Log.e(TAG, "✓ Expiry date extracted from Track 2 (57) (declined): " + maskedExpiryDate
+                                    + " (unmasked: " + expiryDate + ")");
+                        }
+                    }
+                }
+
+                if (expiryDate == null || expiryDate.length() < 4) {
+                    String track29F6B = emvHandler.readTlv("9F6B");
+                    if (track29F6B != null && !track29F6B.isEmpty()) {
+                        String track2Hex = track29F6B.toUpperCase();
+                        int delimiterIndex = track2Hex.indexOf('D');
+                        if (delimiterIndex > 0 && track2Hex.length() > delimiterIndex + 4) {
+                            String expiryHex = track2Hex.substring(delimiterIndex + 1, delimiterIndex + 5);
+                            expiryDate = expiryHex.replaceAll("F+$", "");
+                            if (expiryDate.length() >= 4) {
+                                String yy = expiryDate.substring(0, 2);
+                                String mm = expiryDate.substring(2, 4);
+                                maskedExpiryDate = "**/**";
+                                Log.e(TAG, "✓ Expiry date extracted from Track 2 (9F6B) (declined): " + maskedExpiryDate
+                                        + " (unmasked: " + expiryDate + ")");
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (expiryDate == null || expiryDate.length() < 4) {
+                Log.e(TAG, "⚠️ Expiry date not found in EMV kernel (declined, tried tags 59, 5F24, 57, 9F6B)");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to extract expiry date from EMV kernel (declined): " + e.getMessage());
+        }
+
+        intent.putExtra("cardPan", receiptPan != null ? receiptPan : "");
+        intent.putExtra("tvr", tvr != null ? tvr : "");
+        intent.putExtra("tsi", tsi != null ? tsi : "");
+        intent.putExtra("maskedExpiryDate", maskedExpiryDate != null ? maskedExpiryDate : "");
+
+        // Log what we're passing
+        Log.e(TAG, "Passing to ResultActivity (declined) - amount: " + currentAmount + ", rrn: " + rrn
+                + ", entryMode: " + entryMode + ", aid: " + selectedAid + ", cardPan: "
+                + (receiptPan != null ? maskPan(receiptPan) : "null") + ", isBankDecline: " + isBankDecline
+                + ", tvr: " + tvr + ", tsi: " + tsi);
+
         startActivity(intent);
         finish();
     }
@@ -970,10 +1527,11 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
     }
 
     private String maskPan(String pan) {
-        if (pan == null || pan.length() < 8) {
+        if (pan == null || pan.length() < 10) {
             return "****";
         }
-        return pan.substring(0, 4) + " **** **** " + pan.substring(pan.length() - 4);
+        // Always show first 6 digits and last 4 digits
+        return pan.substring(0, 6) + "****" + pan.substring(pan.length() - 4);
     }
 
     @Override

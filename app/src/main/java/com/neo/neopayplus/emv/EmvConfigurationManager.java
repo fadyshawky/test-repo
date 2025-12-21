@@ -292,6 +292,34 @@ public class EmvConfigurationManager {
             return;
         }
 
+        // Check network and register retry if unavailable
+        try {
+            android.content.Context appContext = com.neo.neopayplus.MyApplication.app;
+            if (appContext != null) {
+                com.neo.neopayplus.utils.NetworkMonitor networkMonitor = com.neo.neopayplus.utils.NetworkMonitor
+                        .getInstance(appContext);
+
+                if (!networkMonitor.isNetworkAvailable()) {
+                    LogUtil.e(TAG, "⚠️ Network unavailable - will retry AIDs loading when network reconnects");
+                    networkMonitor.registerRetryOperation(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                loadAids(emvOptV2);
+                            } catch (RemoteException e) {
+                                LogUtil.e(TAG, "Error retrying AIDs load: " + e.getMessage());
+                            }
+                        }
+                    });
+                    loadMinimalDefaultAids(emvOptV2);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            LogUtil.e(TAG, "⚠️ Error checking network availability: " + e.getMessage());
+            // Continue with API call anyway
+        }
+
         // Use CountDownLatch to wait for async API call
         final CountDownLatch latch = new CountDownLatch(1);
         final boolean[] success = { false };
@@ -351,6 +379,32 @@ public class EmvConfigurationManager {
             @Override
             public void onConfigError(Throwable error) {
                 LogUtil.e(TAG, "⚠️ Error loading AIDs from API: " + error.getMessage());
+
+                // Check if error is network-related and register retry
+                if (error instanceof java.net.UnknownHostException ||
+                        error instanceof java.net.ConnectException ||
+                        error instanceof java.io.IOException) {
+                    LogUtil.e(TAG, "⚠️ Network error detected - will retry AIDs loading when network reconnects");
+                    try {
+                        android.content.Context appContext = com.neo.neopayplus.MyApplication.app;
+                        if (appContext != null) {
+                            com.neo.neopayplus.utils.NetworkMonitor.getInstance(appContext)
+                                    .registerRetryOperation(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            try {
+                                                loadAids(emvOptV2);
+                                            } catch (RemoteException e) {
+                                                LogUtil.e(TAG, "Error retrying AIDs load: " + e.getMessage());
+                                            }
+                                        }
+                                    });
+                        }
+                    } catch (Exception e) {
+                        LogUtil.e(TAG, "Error registering AIDs retry: " + e.getMessage());
+                    }
+                }
+
                 try {
                     loadMinimalDefaultAids(emvOptV2);
                 } catch (RemoteException e) {
@@ -859,6 +913,33 @@ public class EmvConfigurationManager {
             return;
         }
 
+        // Check network and register retry if unavailable
+        try {
+            android.content.Context appContext = com.neo.neopayplus.MyApplication.app;
+            if (appContext != null) {
+                com.neo.neopayplus.utils.NetworkMonitor networkMonitor = com.neo.neopayplus.utils.NetworkMonitor
+                        .getInstance(appContext);
+
+                if (!networkMonitor.isNetworkAvailable()) {
+                    LogUtil.e(TAG, "⚠️ Network unavailable - will retry CAPKs loading when network reconnects");
+                    networkMonitor.registerRetryOperation(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                loadCapks(emvOptV2);
+                            } catch (RemoteException e) {
+                                LogUtil.e(TAG, "Error retrying CAPKs load: " + e.getMessage());
+                            }
+                        }
+                    });
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            LogUtil.e(TAG, "⚠️ Error checking network availability: " + e.getMessage());
+            // Continue with API call anyway
+        }
+
         // Load configuration asynchronously (already cached if we got here from
         // loadAids)
         apiService.loadEmvConfiguration(new com.neo.neopayplus.api.EmvConfigApiService.EmvConfigCallback() {
@@ -875,6 +956,32 @@ public class EmvConfigurationManager {
             @Override
             public void onConfigError(Throwable error) {
                 LogUtil.e(TAG, "⚠️ Error loading CAPKs from API: " + error.getMessage());
+
+                // Check if error is network-related and register retry
+                if (error instanceof java.net.UnknownHostException ||
+                        error instanceof java.net.ConnectException ||
+                        error instanceof java.io.IOException) {
+                    LogUtil.e(TAG, "⚠️ Network error detected - will retry CAPKs loading when network reconnects");
+                    try {
+                        android.content.Context appContext = com.neo.neopayplus.MyApplication.app;
+                        if (appContext != null) {
+                            com.neo.neopayplus.utils.NetworkMonitor.getInstance(appContext)
+                                    .registerRetryOperation(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            try {
+                                                loadCapks(emvOptV2);
+                                            } catch (RemoteException e) {
+                                                LogUtil.e(TAG, "Error retrying CAPKs load: " + e.getMessage());
+                                            }
+                                        }
+                                    });
+                        }
+                    } catch (Exception e) {
+                        LogUtil.e(TAG, "Error registering CAPKs retry: " + e.getMessage());
+                    }
+                }
+
                 LogUtil.e(TAG, "⚠️ Relying on SDK built-in CAPKs");
                 LogUtil.e(TAG, "⚠️ SECURITY: Production CAPKs must be loaded from acquirer/backend");
             }

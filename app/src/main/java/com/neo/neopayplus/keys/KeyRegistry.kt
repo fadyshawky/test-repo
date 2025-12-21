@@ -16,12 +16,14 @@ object KeyRegistry {
     data class KeyState(
         val pinKeyId: String? = null,
         val tpkKcv: String? = null,
+        val wrappedTpk: String? = null, // Wrapped TPK (encrypted under TMK) for testing/decryption
         val lastUpdatedMs: Long = 0L
     )
 
     private const val PREFS_NAME = "key_registry"
     private const val KEY_PIN_ID = "pin_key_id"
     private const val KEY_TPK_KCV = "tpk_kcv"
+    private const val KEY_WRAPPED_TPK = "wrapped_tpk"
     private const val KEY_UPDATED = "updated"
 
     @Volatile
@@ -69,6 +71,7 @@ object KeyRegistry {
         p.edit {
             putString(KEY_PIN_ID, state.pinKeyId)
             putString(KEY_TPK_KCV, state.tpkKcv)
+            putString(KEY_WRAPPED_TPK, state.wrappedTpk)
             putLong(KEY_UPDATED, state.lastUpdatedMs)
         }
     }

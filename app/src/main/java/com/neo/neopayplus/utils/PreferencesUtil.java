@@ -14,7 +14,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-
 /**
  * Local cache utility class
  */
@@ -43,7 +42,6 @@ public final class PreferencesUtil {
                 PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
         pref.edit().putString(KEY_PINPAD_MODE, mode).apply();
     }
-
 
     /**
      * Convert serializable object to Base64 string
@@ -102,7 +100,7 @@ public final class PreferencesUtil {
      */
     private static final String KEY_EMV_CONFIG = "key_emv_config";
     private static final String KEY_EMV_CONFIG_TIMESTAMP = "key_emv_config_timestamp";
-    
+
     /**
      * Save EMV configuration JSON to local storage
      */
@@ -114,7 +112,7 @@ public final class PreferencesUtil {
         editor.putLong(KEY_EMV_CONFIG_TIMESTAMP, System.currentTimeMillis());
         editor.apply();
     }
-    
+
     /**
      * Get EMV configuration JSON from local storage
      */
@@ -123,7 +121,7 @@ public final class PreferencesUtil {
                 PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
         return pref.getString(KEY_EMV_CONFIG, null);
     }
-    
+
     /**
      * Get EMV configuration timestamp
      */
@@ -132,7 +130,7 @@ public final class PreferencesUtil {
                 PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
         return pref.getLong(KEY_EMV_CONFIG_TIMESTAMP, 0);
     }
-    
+
     /**
      * Clear EMV configuration from local storage
      */
@@ -144,11 +142,11 @@ public final class PreferencesUtil {
         editor.remove(KEY_EMV_CONFIG_TIMESTAMP);
         editor.apply();
     }
-    
+
     // ==================== TERMINAL CONFIG CACHE ====================
-    
+
     private static final String PREFIX_TERMINAL_CONFIG = "terminal_config_";
-    
+
     /**
      * Save terminal configuration value to local cache
      */
@@ -159,7 +157,7 @@ public final class PreferencesUtil {
         editor.putString(PREFIX_TERMINAL_CONFIG + key, value);
         editor.apply();
     }
-    
+
     /**
      * Get terminal configuration value from local cache
      */
@@ -168,7 +166,7 @@ public final class PreferencesUtil {
                 PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
         return pref.getString(PREFIX_TERMINAL_CONFIG + key, defaultValue);
     }
-    
+
     /**
      * Clear terminal configuration from local cache
      */
@@ -181,6 +179,9 @@ public final class PreferencesUtil {
         editor.remove(PREFIX_TERMINAL_CONFIG + "merchant_id");
         editor.remove(PREFIX_TERMINAL_CONFIG + "currency_code");
         editor.remove(PREFIX_TERMINAL_CONFIG + "timestamp");
+        // Clear ISO socket config
+        editor.remove(PREFIX_TERMINAL_CONFIG + "iso_socket_host");
+        editor.remove(PREFIX_TERMINAL_CONFIG + "iso_socket_port");
         editor.apply();
     }
 

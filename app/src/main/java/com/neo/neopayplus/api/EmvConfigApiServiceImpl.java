@@ -284,6 +284,39 @@ public class EmvConfigApiServiceImpl implements EmvConfigApiService {
         response.additionalTerminalCapabilities = PaymentConfig.ADDITIONAL_TERMINAL_CAPABILITIES;
         response.transactionCategoryCode = PaymentConfig.TRANSACTION_CATEGORY_CODE;
 
+        // Parse ISO 8583 Socket Configuration
+        if (json.has("iso_socket") && json.get("iso_socket").isJsonObject()) {
+            com.google.gson.JsonObject isoSocket = json.getAsJsonObject("iso_socket");
+            if (isoSocket.has("host") && isoSocket.has("port")) {
+                String isoHost = isoSocket.get("host").getAsString();
+                int isoPort = isoSocket.get("port").getAsInt();
+                boolean isoEnabled = isoSocket.has("enabled") && isoSocket.get("enabled").getAsBoolean();
+
+                if (isoEnabled && isoHost != null && !isoHost.isEmpty() && isoPort > 0) {
+                    // Set ISO socket configuration in PaymentConfig
+                    PaymentConfig.ISO_SOCKET_HOST = isoHost;
+                    PaymentConfig.ISO_SOCKET_PORT = isoPort;
+                    // Save to cache for persistence
+                    PaymentConfig.saveIsoSocketConfigToCache(isoHost, isoPort);
+                    LogUtil.e(TAG, "✓ ISO 8583 Socket Configuration loaded:");
+                    LogUtil.e(TAG, "  Host: " + isoHost);
+                    LogUtil.e(TAG, "  Port: " + isoPort);
+                    LogUtil.e(TAG, "  Mode: ENABLED");
+                } else {
+                    // Disable ISO socket mode
+                    PaymentConfig.ISO_SOCKET_HOST = null;
+                    PaymentConfig.ISO_SOCKET_PORT = 0;
+                    PaymentConfig.saveIsoSocketConfigToCache(null, 0);
+                    LogUtil.e(TAG, "⚠️ ISO 8583 Socket Configuration disabled or invalid");
+                }
+            }
+        } else {
+            // No ISO socket config - disable
+            PaymentConfig.ISO_SOCKET_HOST = null;
+            PaymentConfig.ISO_SOCKET_PORT = 0;
+            LogUtil.e(TAG, "⚠️ No ISO 8583 Socket Configuration in response - using HTTP/JSON mode");
+        }
+
         return response;
     }
 

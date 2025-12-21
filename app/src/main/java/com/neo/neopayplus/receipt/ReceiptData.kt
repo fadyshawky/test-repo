@@ -27,7 +27,9 @@ data class ReceiptData(
     
     // Card and transaction info
     val cardBrand: String? = null, // VISA, MASTERCARD, etc.
+    val cardType: String? = null, // DEBIT or CREDIT
     val maskedPan: String? = null,
+    val maskedExpiryDate: String? = null, // Expiry date masked for display (e.g., "**/25" or "12/**")
     val transactionType: ReceiptTransactionType, // SALE, REFUND, VOID
     val entryMode: ReceiptEntryMode, // CONTACTLESS, IC
     val amount: BigDecimal,
@@ -37,6 +39,8 @@ data class ReceiptData(
     val aid: String? = null,
     val applicationPreferredName: String? = null, // Application label/preferred name for chip transactions
     val authCode: String? = null,
+    val tvr: String? = null, // Terminal Verification Results (tag 95)
+    val tsi: String? = null, // Transaction Status Information (tag 9B)
     
     // Line items (for detailed receipt - Mastercard requirement #4)
     val lineItems: List<ReceiptLineItem> = emptyList(),
@@ -45,6 +49,7 @@ data class ReceiptData(
     val approved: Boolean,
     val responseCode: String? = null,
     val responseMessage: String? = null,
+    val isBankDecline: Boolean = false, // true if decline came from bank (production API)
     
     // CVM (Cardholder Verification Method)
     val cvmMethod: ReceiptCvmMethod,

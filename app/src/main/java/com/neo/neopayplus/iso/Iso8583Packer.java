@@ -46,13 +46,27 @@ public class Iso8583Packer {
             StringBuilder buffer = new StringBuilder();
 
             // MTI: 0100 = Authorization Request
-            buffer.append("0100");
+            // MTI must be ASCII "0100" (4 bytes: 0x30, 0x31, 0x30, 0x30), not hex "0100"
+            // We'll append it as hex representation of ASCII bytes
+            buffer.append("30313030"); // ASCII "0100" in hex
 
             // Primary Bitmap (64 bits, binary)
             // Set bits for fields present: 2, 3, 4, 11, 22, 49, 52 (PIN block), 55
+            // Note: PIN block is encrypted under TPK, so we can only validate length (16
+            // hex chars = 8 bytes)
+            // Format validation (ISO 9564 Format 0/1) must be done after decryption by
+            // backend
+            boolean includePinBlock = false;
+            if (pinBlock != null && !pinBlock.isEmpty() && pinBlock.length() == 16) {
+                // PIN block is encrypted, so we can only check length
+                // Format validation will be done by backend after decryption with TPK
+                includePinBlock = true;
+            }
+
             int[] fields = { 2, 3, 4, 11, 22, 49, 55 };
-            if (pinBlock != null && !pinBlock.isEmpty()) {
-                // Include DE52 (PIN block) if provided
+            if (includePinBlock) {
+                // Include DE52 (PIN block) if provided and has correct length (8 bytes = 16 hex
+                // chars)
                 fields = new int[] { 2, 3, 4, 11, 22, 49, 52, 55 };
             }
             String bitmap = buildBitmap(fields);
@@ -64,48 +78,88 @@ public class Iso8583Packer {
             }
 
             // DE3: Processing Code (numeric, zero-padded to 6 digits)
+            // Per MsgSpec v341, numeric fields are ASCII encoded
             if (processingCode != null && !processingCode.isEmpty()) {
-                buffer.append(zeroPadNumeric(processingCode, 6));
+                buffer.append(asciiToHex(zeroPadNumeric(processingCode, 6)));
+            } else {
+                buffer.append(asciiToHex("000000")); // Default: 6 ASCII zeros
             }
 
             // DE4: Amount, Authorized (12 digits, right-justified, zero-filled)
+            // Per MsgSpec v341, numeric fields are ASCII encoded
             if (amount != null && !amount.isEmpty()) {
-                buffer.append(zeroPadNumeric(amount, 12));
+                buffer.append(asciiToHex(zeroPadNumeric(amount, 12)));
+            } else {
+                buffer.append(asciiToHex("000000000000")); // Default: 12 ASCII zeros
             }
 
             // DE11: STAN (Systems Trace Audit Number) - 6 digits
+            // Per MsgSpec v341, numeric fields are ASCII encoded
             if (stan != null && !stan.isEmpty()) {
-                buffer.append(zeroPadNumeric(stan, 6));
+                buffer.append(asciiToHex(zeroPadNumeric(stan, 6)));
+            } else {
+                buffer.append(asciiToHex("000000")); // Default: 6 ASCII zeros
             }
 
             // DE22: POS Entry Mode - 3 digits
+            // Per MsgSpec v341, numeric fields are ASCII encoded
             if (posEntryMode != null && !posEntryMode.isEmpty()) {
-                buffer.append(zeroPadNumeric(posEntryMode, 3));
+                buffer.append(asciiToHex(zeroPadNumeric(posEntryMode, 3)));
+            } else {
+                buffer.append(asciiToHex("000")); // Default: 3 ASCII zeros
             }
 
             // DE49: Currency Code, Transaction - 3 digits
+            // Per MsgSpec v341, numeric fields are ASCII encoded
             if (currencyCode != null && !currencyCode.isEmpty()) {
-                buffer.append(zeroPadNumeric(currencyCode, 3));
+                buffer.append(asciiToHex(zeroPadNumeric(currencyCode, 3)));
+            } else {
+                buffer.append(asciiToHex("818")); // Default: EGP
             }
 
             // DE52: PIN Block (8 bytes hex string, only for online PIN)
-            if (pinBlock != null && !pinBlock.isEmpty()) {
-                // DE52 format: 8 bytes (16 hex characters)
-                if (pinBlock.length() == 16) {
-                    buffer.append(pinBlock); // Already hex, use as-is
-                    LogUtil.e(TAG, "✓ DE52 (PIN Block) included - length: 8 bytes");
-                } else {
-                    LogUtil.e(TAG, "⚠️ PIN Block length invalid: " + pinBlock.length() + " (expected 16 hex chars)");
-                }
+            // ISO 9564 Format 0 or Format 1 (8 bytes = 16 hex characters)
+            // NOTE: PIN block is encrypted under TPK, so we cannot validate format here
+            // The encrypted bytes will appear random. Format validation is done by backend
+            // after decryption.
+            if (includePinBlock) {
+                // DE52 format: 8 bytes (16 hex characters) - fixed length, no length indicator
+                buffer.append(pinBlock); // Already hex, use as-is (encrypted under TPK)
+                LogUtil.e(TAG, "✓ DE52 (PIN Block) included - length: 8 bytes (encrypted under TPK)");
+                LogUtil.e(TAG,
+                        "  Note: PIN block is encrypted - format validation will be done by backend after decryption");
+            } else if (pinBlock != null && !pinBlock.isEmpty()) {
+                // PIN block provided but invalid length - log warning but don't include in
+                // message
+                LogUtil.e(TAG, "⚠️ PIN Block invalid length - not included in message:");
+                LogUtil.e(TAG, "  Length: " + pinBlock.length() + " hex chars (expected 16 hex chars = 8 bytes)");
             }
 
             // DE55: ICC Data (EMV Field 55)
-            // Format: LL + hex data (where LL is 2-digit length in hex)
+            // Format: LLL + hex data (where LLL is 2 bytes BCD length per MsgSpec v341)
+            // MsgSpec v341: "LLLVAR field with length 15 will have length indicator
+            // '0015h', occupying two bytes"
+            // Line 1183: "Length Attribute n 3 2 0LLL - BCD length of data to follow,
+            // maximum 255 bytes"
+            // BCD encoding: Each decimal digit is encoded in a nibble (4 bits)
+            // Example: length 100 = 0x01 0x00 (BCD) = hex string "0100"
             if (field55 != null && !field55.isEmpty()) {
                 // Convert hex string length to bytes
                 int byteLength = field55.length() / 2;
-                // Format as LL (2 hex digits for length)
-                String lengthHex = String.format("%02X", byteLength);
+                if (byteLength > 255) {
+                    byteLength = 255; // Max per spec
+                }
+                // Encode as 2 bytes BCD: thousands/hundreds in first byte, tens/ones in second
+                // byte
+                // For length 100: thousands=0, hundreds=1, tens=0, ones=0 → 0x01 0x00 → hex
+                // "0100"
+                int thousands = byteLength / 1000;
+                int hundreds = (byteLength / 100) % 10;
+                int tens = (byteLength / 10) % 10;
+                int ones = byteLength % 10;
+                byte bcdByte1 = (byte) ((thousands << 4) | hundreds);
+                byte bcdByte2 = (byte) ((tens << 4) | ones);
+                String lengthHex = String.format("%02X%02X", bcdByte1 & 0xFF, bcdByte2 & 0xFF);
                 buffer.append(lengthHex);
                 buffer.append(field55);
                 LogUtil.e(TAG, "✓ DE55 (ICC Data) included - length: " + byteLength + " bytes");
@@ -117,6 +171,20 @@ public class Iso8583Packer {
 
             LogUtil.e(TAG, "✓ ISO8583 0100 packed - total length: " + isoFrame.length + " bytes");
             LogUtil.e(TAG, "  Hex: " + hexString.substring(0, Math.min(100, hexString.length())) + "...");
+
+            // Detailed structure logging
+            if (isoFrame.length >= 12) {
+                // MTI (4 bytes ASCII)
+                String mti = new String(isoFrame, 0, 4, StandardCharsets.US_ASCII);
+                String mtiHex = bytesToHexString(isoFrame, 0, 4);
+                LogUtil.e(TAG, "  MTI (ASCII): " + mti + " (hex: " + mtiHex + ")");
+
+                // Bitmap (8 bytes binary)
+                String bitmapHex = bytesToHexString(isoFrame, 4, 8);
+                LogUtil.e(TAG, "  Primary Bitmap (binary, 8 bytes): " + bitmapHex);
+                LogUtil.e(TAG, "  Primary Bitmap bytes: " + java.util.Arrays.toString(
+                        java.util.Arrays.copyOfRange(isoFrame, 4, 12)));
+            }
 
             return isoFrame;
 
@@ -148,7 +216,9 @@ public class Iso8583Packer {
             StringBuilder buffer = new StringBuilder();
 
             // MTI: 0400 = Reversal Request
-            buffer.append("0400");
+            // MTI must be ASCII "0400" (4 bytes: 0x30, 0x34, 0x30, 0x30), not hex "0400"
+            // We'll append it as hex representation of ASCII bytes
+            buffer.append("30343030"); // ASCII "0400" in hex
 
             // Primary Bitmap (64 bits, binary)
             // Set bits for fields present: 2, 3, 4, 11, 22, 37 (RRN), 49
@@ -215,6 +285,11 @@ public class Iso8583Packer {
     /**
      * Zero-pad a numeric string on the left to the given width.
      * Non-digit characters are stripped; if parsing fails, returns zeros.
+     * Returns the numeric string as-is (will be converted to ASCII hex in the
+     * buffer).
+     * 
+     * Note: This returns a decimal string (e.g., "000000"), which will be converted
+     * to ASCII hex representation (e.g., "303030303030") when building the message.
      */
     private static String zeroPadNumeric(String value, int width) {
         if (value == null) {
@@ -242,6 +317,24 @@ public class Iso8583Packer {
     }
 
     /**
+     * Convert a numeric ASCII string to its hex representation.
+     * Example: "000000" -> "303030303030" (ASCII "000000" in hex)
+     * 
+     * @param asciiString ASCII string of digits
+     * @return Hex string representation
+     */
+    private static String asciiToHex(String asciiString) {
+        if (asciiString == null) {
+            return "";
+        }
+        StringBuilder hex = new StringBuilder();
+        for (char c : asciiString.toCharArray()) {
+            hex.append(String.format("%02X", (int) c));
+        }
+        return hex.toString();
+    }
+
+    /**
      * Build primary bitmap (64 bits)
      * 
      * @param fieldNumbers Array of field numbers present (e.g., [2, 3, 4, 11, 22,
@@ -264,20 +357,39 @@ public class Iso8583Packer {
 
     /**
      * Format PAN (Primary Account Number)
-     * ISO8583 DE2 format: LL + PAN (where LL is 2-digit length in BCD)
+     * ISO8583 DE2 format: LL + PAN (where LL is 1 byte BCD length per MsgSpec v341)
+     * MsgSpec v341: "LLVAR field with length 15 will have length indicator '15h'
+     * occupying one byte"
+     * BCD encoding: Each decimal digit is encoded in a nibble (4 bits)
+     * Example: length 16 = 0x16 (BCD) = hex string "16"
+     * PAN itself is ASCII encoded (each digit is ASCII byte)
      * 
      * @param pan PAN (may be masked, e.g., "557607******9549")
-     * @return Formatted PAN string
+     * @return Formatted PAN string (hex representation: BCD length byte + ASCII PAN
+     *         in hex)
      */
     private static String formatPan(String pan) {
         // Remove masking characters for packing
         String cleanPan = pan.replaceAll("[*]", "");
 
-        // LL format: length in hex (2 digits)
+        // LL format: 1 byte BCD length (e.g., length 16 = 0x16 in BCD)
+        // BCD: high nibble = tens digit, low nibble = ones digit
         int length = cleanPan.length();
-        String lengthHex = String.format("%02X", length);
+        if (length > 19) {
+            length = 19; // Max per ISO 8583
+        }
+        // Encode length as BCD: "16" means byte 0x16 (BCD 16), not hex 0x10
+        // For length 16: tens=1, ones=6 → 0x16 → hex string "16"
+        int tens = length / 10;
+        int ones = length % 10;
+        byte bcdByte = (byte) ((tens << 4) | ones);
+        String lengthHex = String.format("%02X", bcdByte & 0xFF);
 
-        return lengthHex + cleanPan;
+        // PAN is ASCII encoded (each digit is an ASCII byte)
+        // Convert PAN digits to ASCII hex representation
+        String panHex = asciiToHex(cleanPan);
+
+        return lengthHex + panHex;
     }
 
     /**
@@ -307,5 +419,21 @@ public class Iso8583Packer {
             LogUtil.e(TAG, "Error converting hex to bytes: " + e.getMessage());
             return new byte[0];
         }
+    }
+
+    /**
+     * Convert bytes to hex string for logging
+     * 
+     * @param bytes  Byte array
+     * @param offset Start offset
+     * @param length Number of bytes to convert
+     * @return Hex string representation
+     */
+    private static String bytesToHexString(byte[] bytes, int offset, int length) {
+        StringBuilder hex = new StringBuilder();
+        for (int i = offset; i < offset + length && i < bytes.length; i++) {
+            hex.append(String.format("%02X", bytes[i] & 0xFF));
+        }
+        return hex.toString();
     }
 }

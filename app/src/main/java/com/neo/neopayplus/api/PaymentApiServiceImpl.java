@@ -8,6 +8,9 @@ import com.neo.neopayplus.config.PaymentConfig;
 import com.neo.neopayplus.keys.KeyRegistry;
 import com.neo.neopayplus.iso.Iso8583Packer;
 import com.neo.neopayplus.iso.IsoLogger;
+import com.neo.neopayplus.iso.Iso8583SocketClient;
+import com.neo.neopayplus.iso.Iso8583MessageBuilder;
+import com.neo.neopayplus.iso.Iso8583ResponseParser;
 import com.neo.neopayplus.MyApplication;
 import com.neo.neopayplus.utils.LogUtil;
 
@@ -178,6 +181,23 @@ public class PaymentApiServiceImpl implements PaymentApiService {
         LogUtil.e(TAG, "  KSN: " + (request.ksn != null ? request.ksn : "null"));
         LogUtil.e(TAG, "  Has EMV Data: " + (request.field55 != null && !request.field55.isEmpty()));
 
+        // Check if ISO socket mode is enabled
+        boolean isIsoMode = PaymentConfig.isIsoSocketMode();
+        LogUtil.e(TAG, "=== ISO Socket Mode Check ===");
+        LogUtil.e(TAG, "  ISO_SOCKET_HOST: "
+                + (PaymentConfig.ISO_SOCKET_HOST != null ? PaymentConfig.ISO_SOCKET_HOST : "null"));
+        LogUtil.e(TAG, "  ISO_SOCKET_PORT: " + PaymentConfig.ISO_SOCKET_PORT);
+        LogUtil.e(TAG, "  isIsoSocketMode(): " + isIsoMode);
+
+        if (isIsoMode) {
+            LogUtil.e(TAG, "✓ Using ISO 8583 Socket Mode");
+            callProductionApiIsoSocket(request, callback);
+            return;
+        } else {
+            LogUtil.e(TAG, "⚠️ ISO Socket Mode disabled - using HTTP/JSON mode");
+        }
+
+        // Fall back to HTTP/JSON mode
         try {
             JsonObject requestJson = buildRequestJson(request);
             Gson gson = new Gson();
@@ -246,6 +266,175 @@ public class PaymentApiServiceImpl implements PaymentApiService {
             LogUtil.e(TAG, "❌ Error building production API request: " + e.getMessage());
             callback.onAuthorizationError(e);
         }
+    }
+
+    /**
+     * Call production API using ISO 8583 socket communication (MsgSpec v341)
+     */
+    private void callProductionApiIsoSocket(AuthorizationRequest request, AuthorizationCallback callback) {
+        LogUtil.e(TAG, "=== PRODUCTION API: ISO 8583 Socket Mode ===");
+        LogUtil.e(TAG, "  Host: " + PaymentConfig.ISO_SOCKET_HOST);
+        LogUtil.e(TAG, "  Port: " + PaymentConfig.ISO_SOCKET_PORT);
+
+        new Thread(() -> {
+            Iso8583SocketClient socketClient = null;
+            try {
+                // Create and connect socket client
+                socketClient = new Iso8583SocketClient(
+                        PaymentConfig.ISO_SOCKET_HOST,
+                        PaymentConfig.ISO_SOCKET_PORT);
+                socketClient.connect();
+
+                // Build ISO 8583 application data (0100)
+                // PAN must be sent in full (unmasked) exactly as extracted from EMV tag
+                // No masking, no truncation, no modifications - send exactly as extracted
+                String pan = request.pan != null ? request.pan : "";
+                LogUtil.e(TAG, "✓ PAN for ISO 8583 (full, unmasked, as extracted from EMV): " + pan);
+                LogUtil.e(TAG, "✓ PAN length: " + (pan != null ? pan.length() : 0) + " characters");
+                String processingCode = "000000"; // Purchase
+                String amount = request.amount;
+                String stan = generateStan(request.date, request.time);
+                String posEntryMode = determinePosEntryMode(request);
+                String currencyCode = request.currencyCode != null ? request.currencyCode
+                        : PaymentConfig.getCurrencyCode();
+                String field55 = request.field55 != null ? request.field55 : "";
+                String terminalId = PaymentConfig.getTerminalId();
+                String merchantId = PaymentConfig.getMerchantId();
+                String pinBlock = null;
+                if (request.pinBlock != null && request.pinBlock.length > 0) {
+                    pinBlock = bytesToHex(request.pinBlock);
+                }
+
+                byte[] applicationData = Iso8583Packer.pack0100(
+                        pan, processingCode, amount, stan, posEntryMode,
+                        currencyCode, field55, terminalId, merchantId, pinBlock);
+
+                if (applicationData == null || applicationData.length == 0) {
+                    throw new IOException("Failed to pack ISO 8583 message");
+                }
+
+                // Build complete message with header and CRC
+                byte[] destinationAddress = PaymentConfig.ISO_DESTINATION_ADDRESS;
+                byte[] originatorAddress = terminalIdToBytes(terminalId);
+                byte[] completeMessage = Iso8583MessageBuilder.buildCompleteMessage(
+                        applicationData, destinationAddress, originatorAddress);
+
+                if (completeMessage == null || completeMessage.length == 0) {
+                    throw new IOException("Failed to build complete ISO 8583 message");
+                }
+
+                // Log ISO message (for debugging)
+                IsoLogger.save(completeMessage, "0100");
+
+                // Send and receive
+                byte[] responseMessage = socketClient.sendAndReceive(completeMessage, 30000);
+
+                // Parse response
+                byte[] responseApplicationData = Iso8583MessageBuilder.parseResponse(responseMessage);
+                Iso8583ResponseParser.ParsedResponse parsedResponse = Iso8583ResponseParser
+                        .parse0110(responseApplicationData);
+
+                if (parsedResponse == null) {
+                    throw new IOException("Failed to parse ISO 8583 response");
+                }
+
+                // Convert to AuthorizationResponse
+                AuthorizationResponse authResponse = convertIsoResponseToAuthorizationResponse(parsedResponse, request);
+
+                // Log PIN verification result
+                if (request.pinBlock != null && request.pinBlock.length > 0) {
+                    if (authResponse.approved) {
+                        LogUtil.e(TAG, "✓ PIN verified successfully by backend");
+                    } else if ("55".equals(authResponse.responseCode) || "63".equals(authResponse.responseCode)) {
+                        LogUtil.e(TAG, "⚠️ PIN verification failed - incorrect PIN");
+                    }
+                }
+
+                mainHandler.post(() -> callback.onAuthorizationComplete(authResponse));
+
+            } catch (Exception e) {
+                LogUtil.e(TAG, "❌ ISO 8583 Socket Error: " + e.getMessage());
+                mainHandler.post(() -> callback.onAuthorizationError(e));
+            } finally {
+                if (socketClient != null) {
+                    socketClient.close();
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Convert ISO 8583 parsed response to AuthorizationResponse
+     */
+    private AuthorizationResponse convertIsoResponseToAuthorizationResponse(
+            Iso8583ResponseParser.ParsedResponse parsedResponse,
+            AuthorizationRequest request) {
+
+        boolean approved = parsedResponse.approved;
+        String responseCode = parsedResponse.responseCode != null ? parsedResponse.responseCode : "XX";
+        String authCode = parsedResponse.authCode != null ? parsedResponse.authCode : "";
+        String rrn = parsedResponse.rrn != null ? parsedResponse.rrn : "";
+
+        // Parse Field 55 (EMV response tags) if present
+        List<String> responseTagList = new ArrayList<>();
+        List<String> responseValueList = new ArrayList<>();
+
+        if (approved) {
+            // Tag 8A: Authorization Response Code
+            responseTagList.add("8A");
+            responseValueList.add("3000"); // Approved
+
+            // Tag 91: Issuer Authentication Data (if present in Field 55)
+            // Note: Field 55 may contain tag 91, we'd need to parse TLV here
+            // For now, add empty tag 91
+            responseTagList.add("91");
+            responseValueList.add("");
+
+            // Parse Field 55 for additional EMV tags if needed
+            if (parsedResponse.field55 != null && !parsedResponse.field55.isEmpty()) {
+                // Field 55 contains TLV data - parse it
+                // This is a simplified version - full TLV parsing would be needed
+                LogUtil.e(TAG, "Field 55 present in response: " + parsedResponse.field55.length() + " hex chars");
+            }
+        } else {
+            // Tag 8A: Decline Code
+            String emvResponseCode = convertIsoResponseToEmv8A(responseCode);
+            responseTagList.add("8A");
+            responseValueList.add(emvResponseCode);
+        }
+
+        String[] responseTags = responseTagList.toArray(new String[0]);
+        String[] responseValues = responseValueList.toArray(new String[0]);
+
+        if (approved) {
+            return AuthorizationResponse.success(authCode, rrn, responseTags, responseValues);
+        } else {
+            String message = getDeclineMessage(responseCode);
+            return AuthorizationResponse.declined(responseCode, message, true); // Bank decline
+        }
+    }
+
+    /**
+     * Convert terminal ID string to 2 bytes for TPDU originator address
+     */
+    private byte[] terminalIdToBytes(String terminalId) {
+        if (terminalId == null || terminalId.isEmpty()) {
+            return new byte[] { 0x00, 0x01 };
+        }
+        String digits = terminalId.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) {
+            return new byte[] { 0x00, 0x01 };
+        }
+        if (digits.length() > 4) {
+            digits = digits.substring(digits.length() - 4);
+        } else {
+            digits = String.format("%04d", Integer.parseInt(digits));
+        }
+        int value = Integer.parseInt(digits);
+        return new byte[] {
+                (byte) ((value >> 8) & 0xFF),
+                (byte) (value & 0xFF)
+        };
     }
 
     /**
@@ -355,9 +544,13 @@ public class PaymentApiServiceImpl implements PaymentApiService {
         }
 
         // EMV data structure (from field55 - real data from terminal)
+        // Field 55 contains unmasked PAN in tags 5A, 57, or 9F6B (required for bank
+        // communication)
+        // Field 55 is built directly from EMV kernel and passed as-is without masking
         if (request.field55 != null && !request.field55.isEmpty()) {
             JsonObject emvData = new JsonObject();
-            // Pass field55 as-is for backend to parse
+            // Pass field55 as-is for backend to parse (PAN is unmasked in tags 5A, 57,
+            // 9F6B)
             json.addProperty("track2_encrypted", ""); // Would be encrypted track2 if available
             json.addProperty("emv_data_raw", request.field55);
             json.addProperty("icc_data", request.field55);
@@ -416,13 +609,75 @@ public class PaymentApiServiceImpl implements PaymentApiService {
             pinBlockHex = bytesToHex(request.pinBlock);
             // PIN block should be 8 bytes (16 hex chars)
             if (pinBlockHex.length() == 16) {
-                LogUtil.e(TAG, "✓ PIN block extracted for DE52: " + pinBlockHex.substring(0, 4) + "****"
+                // Verify ISO 9564 format (Format 0 or Format 1)
+                String formatNibble = pinBlockHex.substring(0, 1);
+                String pinBlockFormat = "Unknown";
+                boolean isValidFormat = false;
+
+                if ("0".equals(formatNibble)) {
+                    pinBlockFormat = "ISO 9564 Format 0";
+                    isValidFormat = true;
+                } else if ("1".equals(formatNibble)) {
+                    pinBlockFormat = "ISO 9564 Format 1";
+                    isValidFormat = true;
+                } else {
+                    pinBlockFormat = "Format " + formatNibble + " (not ISO 9564 Format 0 or 1)";
+                }
+
+                // Extract PIN length (second nibble)
+                int pinLength = -1;
+                try {
+                    pinLength = Integer.parseInt(pinBlockHex.substring(1, 2), 16);
+                } catch (Exception e) {
+                    // Ignore
+                }
+
+                LogUtil.e(TAG, "=== Field 52 (PIN Block) Details ===");
+                LogUtil.e(TAG, "✓ PIN Block (DE52): " + pinBlockHex.substring(0, 4) + "****"
                         + pinBlockHex.substring(pinBlockHex.length() - 4));
+                LogUtil.e(TAG, "✓ PIN Block Format: " + pinBlockFormat + (isValidFormat ? " ✓" : " ⚠️"));
+                LogUtil.e(TAG, "✓ PIN Block Length: 8 bytes (16 hex chars)");
+                if (pinLength >= 0 && pinLength <= 12) {
+                    LogUtil.e(TAG, "✓ PIN Length (from block): " + pinLength + " digits");
+                }
+
+                // Log TPK information (for testing/decryption)
+                try {
+                    KeyRegistry.KeyState keyState = KeyRegistry.current();
+                    if (keyState != null) {
+                        String pinKeyId = keyState.getPinKeyId();
+                        String tpkKcv = keyState.getTpkKcv();
+                        String wrappedTpk = keyState.getWrappedTpk();
+                        LogUtil.e(TAG, "=== TPK (Terminal PIN Key) Details ===");
+                        LogUtil.e(TAG, "✓ TPK Slot: 12 (TPK_INDEX)");
+                        LogUtil.e(TAG, "✓ TPK KCV: " + (tpkKcv != null ? tpkKcv : "N/A"));
+                        LogUtil.e(TAG, "✓ PIN Key ID: " + (pinKeyId != null ? pinKeyId : "N/A"));
+                        LogUtil.e(TAG, "✓ Key System: MKSK (Master Key / Session Key)");
+                        if (wrappedTpk != null && !wrappedTpk.isEmpty()) {
+                            LogUtil.e(TAG, "✓ Wrapped TPK (encrypted under TMK): " + wrappedTpk);
+                            LogUtil.e(TAG, "  Note: This is the TPK encrypted under TMK.");
+                            LogUtil.e(TAG,
+                                    "  To decrypt PIN blocks: Unwrap TPK using TMK, then decrypt PIN block using TPK.");
+                        } else {
+                            LogUtil.e(TAG, "⚠️ Wrapped TPK: Not stored (may need to re-provision TPK)");
+                        }
+                    } else {
+                        LogUtil.e(TAG, "⚠️ TPK Key State: Not available");
+                    }
+                } catch (Exception e) {
+                    LogUtil.e(TAG, "⚠️ Failed to retrieve TPK information: " + e.getMessage());
+                }
+            } else {
+                LogUtil.e(TAG, "⚠️ PIN Block length invalid: " + pinBlockHex.length() + " hex chars (expected 16)");
             }
+        } else {
+            LogUtil.e(TAG, "⚠️ No PIN block in request - Field 52 (DE52) will not be included");
         }
 
+        // Send actual PAN (unmasked) to ISO message - masking is only for
+        // logging/display
         byte[] isoFrame = Iso8583Packer.pack0100(
-                request.pan != null ? maskCardNumber(request.pan) : "",
+                request.pan != null ? request.pan : "",
                 "000000", // Processing Code
                 request.amount,
                 generateStan(request.date, request.time),
@@ -672,11 +927,12 @@ public class PaymentApiServiceImpl implements PaymentApiService {
     }
 
     private String maskCardNumber(String cardNumber) {
-        if (cardNumber == null || cardNumber.length() < 6) {
+        if (cardNumber == null || cardNumber.length() < 10) {
             return "****";
         }
-        // Format: "400000******7899"
-        return cardNumber.substring(0, 6) + "******" + cardNumber.substring(cardNumber.length() - 4);
+        // Always show first 6 digits and last 4 digits
+        // Format: "400000****7899"
+        return cardNumber.substring(0, 6) + "****" + cardNumber.substring(cardNumber.length() - 4);
     }
 
     /**
@@ -794,10 +1050,11 @@ public class PaymentApiServiceImpl implements PaymentApiService {
             LogUtil.e(TAG, "  RRN: " + rrn);
             return AuthorizationResponse.success(authCode, rrn, responseTags, responseValues);
         } else {
-            LogUtil.e(TAG, "⚠️ Backend authorization: DECLINED");
+            LogUtil.e(TAG, "⚠️ Backend authorization: DECLINED (from bank)");
             LogUtil.e(TAG, "  Response Code: " + responseCode);
             LogUtil.e(TAG, "  Message: " + responseMessage);
-            return AuthorizationResponse.declined(responseCode, responseMessage);
+            // Production API decline = bank decline
+            return AuthorizationResponse.declined(responseCode, responseMessage, true);
         }
     }
 
