@@ -25,10 +25,7 @@ import com.neo.neopayplus.ui.theme.Background
 import com.neo.neopayplus.ui.theme.IndigoBlue
 import com.neo.neopayplus.ui.theme.MutedLavender
 import com.neo.neopayplus.ui.theme.White
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import java.math.BigDecimal
-import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -383,11 +380,7 @@ fun SettlementScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .then(
-                        // Block all interactions
-                        Modifier
-                    ),
+                    .background(Color.Black.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center
             ) {
                 Card(

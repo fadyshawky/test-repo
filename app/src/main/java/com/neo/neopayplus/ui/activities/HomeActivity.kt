@@ -8,7 +8,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.neo.neopayplus.MyApplication
 import com.neo.neopayplus.emv.EmvProvisioningManager
 import com.neo.neopayplus.ui.screens.HomeScreen
 import com.neo.neopayplus.ui.theme.Background

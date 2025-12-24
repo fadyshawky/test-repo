@@ -105,14 +105,6 @@
             android:screenOrientation="portrait"
             android:launchMode="singleTop" />
         
-        <!-- Reversal Activity - Handles transaction reversals -->
-        <activity
-            android:name=".ui.activities.ReversalActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:launchMode="singleTop"
-            tools:ignore="LockedOrientationActivity" />
-        
         <!-- Settlement Activity - Batch settlement operations -->
         <activity
             android:name=".ui.activities.SettlementActivity"

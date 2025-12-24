@@ -116,35 +116,6 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
     }
     
     private fun createLabelValueLine(label: String, value: String): ReceiptLine {
-        // Format: Label Value (no colon, matching approved receipt format)
-        val receiptWidth = 32 // Typical thermal receipt width in characters
-        val labelLength = label.length
-        val valueLength = value.length
-        val availableSpace = receiptWidth - labelLength - valueLength
-        
-        if (availableSpace > 0) {
-            val spacing = " ".repeat(availableSpace)
-            val line = "$label$spacing$value"
-            return ReceiptLine.Text(line, Alignment.LEFT, FontSize.NORMAL)
-        } else {
-            // If too long, just concatenate
-            return ReceiptLine.Text("$label $value", Alignment.LEFT, FontSize.NORMAL)
-        }
-    }
-    
-    private fun createLabelValueLine(leftValue: String, rightValue: String, receiptWidth: Int = 32): ReceiptLine {
-        // Format: LeftValue (left aligned) RightValue (right aligned)
-        val leftLength = leftValue.length
-        val rightLength = rightValue.length
-        val availableSpace = receiptWidth - leftLength - rightLength
-        
-        if (availableSpace > 0) {
-            val spacing = " ".repeat(availableSpace)
-            val line = "$leftValue$spacing$rightValue"
-            return ReceiptLine.Text(line, Alignment.LEFT, FontSize.NORMAL)
-        } else {
-            // If too long, just concatenate with single space
-            return ReceiptLine.Text("$leftValue $rightValue", Alignment.LEFT, FontSize.NORMAL)
-        }
+        return ReceiptLineUtils.createLabelValueLine(label, value)
     }
 }

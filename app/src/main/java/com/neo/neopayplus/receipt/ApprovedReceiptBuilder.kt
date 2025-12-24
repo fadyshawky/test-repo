@@ -143,20 +143,6 @@ class ApprovedReceiptBuilder(private val data: ReceiptData) {
     }
     
     private fun createLabelValueLine(label: String, value: String): ReceiptLine {
-        // Format: Label Value (no colon, matching user's changes)
-        // Receipt width is typically 32-48 characters, use 32 for safety
-        val receiptWidth = 32 // Typical thermal receipt width in characters
-        val labelLength = label.length
-        val valueLength = value.length
-        val availableSpace = receiptWidth - labelLength - valueLength
-        
-        if (availableSpace > 0) {
-            val spacing = " ".repeat(availableSpace)
-            val line = "$label$spacing$value"
-            return ReceiptLine.Text(line, Alignment.LEFT, FontSize.NORMAL)
-        } else {
-            // If too long, just concatenate
-            return ReceiptLine.Text("$label $value", Alignment.LEFT, FontSize.NORMAL)
-        }
+        return ReceiptLineUtils.createLabelValueLine(label, value)
     }
 }

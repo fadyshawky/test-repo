@@ -149,15 +149,7 @@ object SettlementReceiptBuilder {
     }
     
     private fun createLabelValueLine(leftValue: String, rightValue: String): ReceiptLine {
-        // Format: "leftValue.          rightValue"
-        val leftPart = "$leftValue."
-        val spaces = RECEIPT_WIDTH - leftPart.length - rightValue.length
-        val line = if (spaces > 0) {
-            leftPart + " ".repeat(spaces) + rightValue
-        } else {
-            "$leftPart $rightValue"
-        }
-        return ReceiptLine.Text(line, Alignment.LEFT, FontSize.NORMAL)
+        return ReceiptLineUtils.createLeftRightLine(leftValue, rightValue, RECEIPT_WIDTH)
     }
 }
 

@@ -1,14 +1,11 @@
 package com.neo.neopayplus.utils;
 
 import com.neo.neopayplus.Constant;
-import com.neo.neopayplus.api.PaymentApiFactory;
-import com.neo.neopayplus.api.PaymentApiService;
 import com.neo.neopayplus.utils.LogUtil;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * Server Time Sync Utility
