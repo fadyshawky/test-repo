@@ -6,16 +6,21 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.neo.neopayplus.receipt.ReceiptPrinterService
 import com.neo.neopayplus.ui.screens.SettlementScreen
 import com.neo.neopayplus.ui.theme.Background
 import com.neo.neopayplus.ui.theme.NeoTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * Settlement Activity - Handles batch settlement operations.
  */
 @AndroidEntryPoint
 class SettlementActivity : ComponentActivity() {
+    
+    @Inject
+    lateinit var receiptPrinterService: ReceiptPrinterService
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +31,7 @@ class SettlementActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Background
                 ) {
-                    SettlementScreen()
+                    SettlementScreen(receiptPrinterService = receiptPrinterService)
                 }
             }
         }

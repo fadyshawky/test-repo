@@ -55,11 +55,12 @@ public class ProcessEmvTransactionUseCase {
         public final int pinType;
         public final int stan;
         public final String field55; // Field 55 (DE55) hex string - built by Emv55Builder
+        public final String transactionType; // "purchase" or "refund"
 
         public TransactionData(String pan, String amount, String currencyCode,
                 int cardType, boolean pinEntered, boolean fallbackUsed,
                 byte[] onlinePinBlock, String ksn, int pinType, int stan,
-                String field55) {
+                String field55, String transactionType) {
             this.pan = pan;
             this.amount = amount;
             this.currencyCode = currencyCode;
@@ -71,6 +72,7 @@ public class ProcessEmvTransactionUseCase {
             this.pinType = pinType;
             this.stan = stan;
             this.field55 = field55;
+            this.transactionType = transactionType != null ? transactionType : "purchase";
         }
     }
 
@@ -206,7 +208,9 @@ public class ProcessEmvTransactionUseCase {
         request.amount = transactionData.amount;
         request.currencyCode = transactionData.currencyCode;
         request.cardType = transactionData.cardType; // Pass card type for contactless detection
-        request.transactionType = "00"; // Purchase
+        // Set transaction type: "00" for purchase, "20" for refund (ISO8583)
+        request.transactionType = "refund".equals(transactionData.transactionType) ? "20" : "00";
+        LogUtil.e(TAG, "Transaction type: " + transactionData.transactionType + " -> ISO8583 code: " + request.transactionType);
 
         // Set date/time
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMdd", Locale.US);

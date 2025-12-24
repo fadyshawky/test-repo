@@ -28,30 +28,32 @@ class ReversalService {
     val reversalState: StateFlow<ReversalState> = _reversalState.asStateFlow()
     
     /**
-     * Process reversal transaction
+     * Process reversal transaction by transaction ID
      */
-    fun processReversal(rrn: String) {
+    fun processReversal(transactionId: String) {
         _reversalState.value = ReversalState.Processing("Looking up transaction...")
         
         try {
-            // Find original transaction by RRN
-            val originalTx = TransactionJournal.findTransactionByRrn(rrn)
+            // Find original transaction by transaction ID
+            val originalTx = TransactionJournal.findTransactionById(transactionId)
             
             if (originalTx == null) {
-                _reversalState.value = ReversalState.Error("Transaction not found for RRN: $rrn")
-                LogUtil.e(Constant.TAG, "❌ No transaction found with RRN: $rrn")
+                _reversalState.value = ReversalState.Error("Transaction not found for ID: $transactionId")
+                LogUtil.e(Constant.TAG, "❌ No transaction found with ID: $transactionId")
                 return
             }
             
             LogUtil.e(Constant.TAG, "=== PROCESSING REVERSAL ===")
-            LogUtil.e(Constant.TAG, "  RRN: $rrn")
+            LogUtil.e(Constant.TAG, "  Transaction ID: $transactionId")
+            LogUtil.e(Constant.TAG, "  RRN: ${originalTx.rrn}")
             LogUtil.e(Constant.TAG, "  Original Amount: ${originalTx.amount}")
             
             // Build reversal request
             val request = PaymentApiService.ReversalRequest().apply {
                 terminalId = PaymentConfig.getTerminalId()
                 merchantId = PaymentConfig.getMerchantId()
-                this.rrn = rrn
+                this.transactionId = transactionId
+                this.rrn = originalTx.rrn // Include RRN for backward compatibility
                 amount = originalTx.amount
                 currencyCode = originalTx.currencyCode ?: PaymentConfig.getCurrencyCode()
                 reversalReason = "USER_REQUEST"
@@ -66,8 +68,15 @@ class ReversalService {
                         if (response.approved) {
                             LogUtil.e(Constant.TAG, "✓ Reversal Approved ✅")
                             
-                            // Save to journal
+                            // Update original transaction status to REFUNDED
+                            if (originalTx.transactionId != null) {
+                                TransactionJournal.updateTransactionStatus(originalTx.transactionId, "REFUNDED")
+                                LogUtil.e(Constant.TAG, "✓ Original transaction marked as REFUNDED: ${originalTx.transactionId}")
+                            }
+                            
+                            // Save reversal transaction to journal
                             val reversal = TransactionJournal.TransactionRecord().apply {
+                                this.transactionId = null // Will be auto-generated
                                 this.rrn = request.rrn
                                 amount = request.amount
                                 currencyCode = request.currencyCode
@@ -75,7 +84,10 @@ class ReversalService {
                                 this.responseCode = response.responseCode
                                 status = "APPROVED"
                                 isReversal = true
-                                originalRrn = request.rrn
+                                originalRrn = originalTx.rrn
+                                
+                                // Use original transaction's batch number for reversals
+                                this.batchNumber = originalTx.batchNumber
                                 
                                 // Use current date/time
                                 val dateFormat = SimpleDateFormat("yyMMdd", Locale.US)
@@ -91,7 +103,7 @@ class ReversalService {
                                 approved = true,
                                 rc = response.responseCode ?: "00",
                                 msg = response.responseMessage ?: "Reversal Approved",
-                                rrn = rrn
+                                rrn = originalTx.rrn
                             )
                         } else {
                             LogUtil.e(Constant.TAG, "❌ Reversal Declined: ${response.responseCode}")

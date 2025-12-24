@@ -36,6 +36,7 @@ public class SettlementApiServiceImpl implements SettlementApiService {
     
     // API routes/endpoints
     private static final String ROUTE_SETTLEMENT_UPLOAD = "/tx/settlement";
+    private static final String ROUTE_CLEAR_TRANSACTIONS = "/tx/clear-transactions";
     
     private static final MediaType JSON = MediaType.parse("application/json");
     
@@ -199,29 +200,93 @@ public class SettlementApiServiceImpl implements SettlementApiService {
     }
     
     /**
+     * Clear all transactions from backend
+     */
+    public void clearBackendTransactions(ClearTransactionsCallback callback) {
+        if (!isProductionMode()) {
+            // Mock mode - simulate success
+            mainHandler.post(() -> {
+                if (callback != null) {
+                    callback.onClearComplete(true, "Mock: Transactions cleared (mock mode)");
+                }
+            });
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                String url = buildUrl(ROUTE_CLEAR_TRANSACTIONS);
+                LogUtil.e(TAG, "=== Clearing backend transactions ===");
+                LogUtil.e(TAG, "  POST " + url);
+                
+                JsonObject requestJson = new JsonObject();
+                String requestBodyStr = new Gson().toJson(requestJson);
+                RequestBody requestBody = RequestBody.create(JSON, requestBodyStr);
+                
+                Request httpRequest = new Request.Builder()
+                        .url(url)
+                        .post(requestBody)
+                        .addHeader("Content-Type", "application/json")
+                        .addHeader("Accept", "application/json")
+                        .addHeader("Authorization", "Bearer " + (apiKey != null ? apiKey : "test-token"))
+                        .build();
+                
+                try (Response response = httpClient.newCall(httpRequest).execute()) {
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    boolean success = response.isSuccessful();
+                    
+                    if (success) {
+                        LogUtil.e(TAG, "✓ Backend transactions cleared successfully");
+                    } else {
+                        LogUtil.e(TAG, "✗ Failed to clear backend transactions: HTTP " + response.code());
+                    }
+                    
+                    final boolean finalSuccess = success;
+                    final String finalMessage = success ? "Backend transactions cleared" : "Failed to clear backend transactions";
+                    
+                    mainHandler.post(() -> {
+                        if (callback != null) {
+                            callback.onClearComplete(finalSuccess, finalMessage);
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                LogUtil.e(TAG, "✗ Error clearing backend transactions: " + e.getMessage());
+                mainHandler.post(() -> {
+                    if (callback != null) {
+                        callback.onClearComplete(false, "Error: " + e.getMessage());
+                    }
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Callback interface for clear transactions operation
+     */
+    public interface ClearTransactionsCallback {
+        void onClearComplete(boolean success, String message);
+    }
+    
+    /**
      * Build request JSON from batch upload request
      */
     private JsonObject buildRequestJson(BatchUploadRequest request) {
         JsonObject json = new JsonObject();
         json.addProperty("terminal_id", request.terminalId);
+        json.addProperty("batch_number", request.batchNumber != null ? request.batchNumber : "");
         json.addProperty("batch_date", request.batchDate);
         json.addProperty("batch_time", request.batchTime != null ? request.batchTime : "");
         
+        // Send transactions for validation - backend will compare with transactions found by batch number
         JsonArray transactionsArray = new JsonArray();
         if (request.transactions != null) {
             for (SettlementTransaction tx : request.transactions) {
                 JsonObject txJson = new JsonObject();
-                txJson.addProperty("rrn", tx.rrn);
-                txJson.addProperty("auth_code", tx.authCode != null ? tx.authCode : "");
-                txJson.addProperty("pan", tx.pan != null ? tx.pan : "");
-                txJson.addProperty("amount", tx.amount);
-                txJson.addProperty("currency_code", tx.currencyCode);
-                txJson.addProperty("transaction_type", tx.transactionType != null ? tx.transactionType : "00");
-                txJson.addProperty("date", tx.date != null ? tx.date : "");
-                txJson.addProperty("time", tx.time != null ? tx.time : "");
-                txJson.addProperty("field55", tx.field55 != null ? tx.field55 : "");
-                txJson.addProperty("response_code", tx.responseCode != null ? tx.responseCode : "");
+                txJson.addProperty("transaction_id", tx.transactionId != null ? tx.transactionId : "");
+                txJson.addProperty("rrn", tx.rrn != null ? tx.rrn : "");
                 txJson.addProperty("status", tx.status != null ? tx.status : "");
+                // Only send minimal data needed for matching
                 transactionsArray.add(txJson);
             }
         }
@@ -243,6 +308,10 @@ public class SettlementApiServiceImpl implements SettlementApiService {
             
             if (success) {
                 String batchId = json.has("batch_id") ? json.get("batch_id").getAsString() : "";
+                String batchNumber = json.has("batch_number") ? json.get("batch_number").getAsString() : batchId;
+                String batchDate = json.has("batch_date") ? json.get("batch_date").getAsString() : "";
+                String batchTime = json.has("batch_time") ? json.get("batch_time").getAsString() : "";
+                String terminalId = json.has("terminal_id") ? json.get("terminal_id").getAsString() : "";
                 int totalCount = json.has("total_count") ? json.get("total_count").getAsInt() : 0;
                 int acceptedCount = json.has("accepted_count") ? json.get("accepted_count").getAsInt() : 0;
                 int rejectedCount = json.has("rejected_count") ? json.get("rejected_count").getAsInt() : 0;
@@ -264,6 +333,80 @@ public class SettlementApiServiceImpl implements SettlementApiService {
                     }
                 }
                 
+                // Parse totals (all calculated by backend)
+                SettlementTotals totals = new SettlementTotals();
+                if (json.has("totals")) {
+                    JsonObject totalsObj = json.getAsJsonObject("totals");
+                    // Sales
+                    totals.countSales = totalsObj.has("count_sales") ? totalsObj.get("count_sales").getAsInt() : 0;
+                    totals.totalSales = totalsObj.has("total_sales") ? totalsObj.get("total_sales").getAsString() : "0.00";
+                    // Refunds
+                    totals.countRefund = totalsObj.has("count_refund") ? totalsObj.get("count_refund").getAsInt() : 0;
+                    totals.totalRefund = totalsObj.has("total_refund") ? totalsObj.get("total_refund").getAsString() : "0.00";
+                    // Voids
+                    totals.countVoid = totalsObj.has("count_void") ? totalsObj.get("count_void").getAsInt() : 0;
+                    totals.totalVoid = totalsObj.has("total_void") ? totalsObj.get("total_void").getAsString() : "0.00";
+                    // Declined
+                    totals.countDeclined = totalsObj.has("count_declined") ? totalsObj.get("count_declined").getAsInt() : 0;
+                    totals.totalDeclined = totalsObj.has("total_declined") ? totalsObj.get("total_declined").getAsString() : "0.00";
+                    // Summary
+                    totals.grandTotal = totalsObj.has("grand_total") ? totalsObj.get("grand_total").getAsString() : "0.00";
+                    totals.currency = totalsObj.has("currency") ? totalsObj.get("currency").getAsString() : "EGP";
+                    
+                    // Parse brand-specific totals (calculated by backend)
+                    if (totalsObj.has("brands")) {
+                        JsonObject brandsObj = totalsObj.getAsJsonObject("brands");
+                        
+                        // VISA
+                        if (brandsObj.has("visa")) {
+                            JsonObject visaObj = brandsObj.getAsJsonObject("visa");
+                            totals.visa = new SettlementApiService.BrandTotalsData();
+                            totals.visa.sales = parseBrandTransactionTotals(visaObj, "sales");
+                            totals.visa.voids = parseBrandTransactionTotals(visaObj, "voids");
+                            totals.visa.refunds = parseBrandTransactionTotals(visaObj, "refunds");
+                            totals.visa.total = visaObj.has("total") ? visaObj.get("total").getAsString() : "0.00";
+                        }
+                        
+                        // MASTERCARD
+                        if (brandsObj.has("mastercard")) {
+                            JsonObject mastercardObj = brandsObj.getAsJsonObject("mastercard");
+                            totals.mastercard = new SettlementApiService.BrandTotalsData();
+                            totals.mastercard.sales = parseBrandTransactionTotals(mastercardObj, "sales");
+                            totals.mastercard.voids = parseBrandTransactionTotals(mastercardObj, "voids");
+                            totals.mastercard.refunds = parseBrandTransactionTotals(mastercardObj, "refunds");
+                            totals.mastercard.total = mastercardObj.has("total") ? mastercardObj.get("total").getAsString() : "0.00";
+                        }
+                        
+                        // MEEZA
+                        if (brandsObj.has("meeza")) {
+                            JsonObject meezaObj = brandsObj.getAsJsonObject("meeza");
+                            totals.meeza = new SettlementApiService.BrandTotalsData();
+                            totals.meeza.sales = parseBrandTransactionTotals(meezaObj, "sales");
+                            totals.meeza.voids = parseBrandTransactionTotals(meezaObj, "voids");
+                            totals.meeza.refunds = parseBrandTransactionTotals(meezaObj, "refunds");
+                            totals.meeza.total = meezaObj.has("total") ? meezaObj.get("total").getAsString() : "0.00";
+                        }
+                    }
+                }
+                
+                // Parse settled transactions
+                List<SettlementTransaction> settledTransactions = new ArrayList<>();
+                if (json.has("transactions")) {
+                    JsonArray txArray = json.getAsJsonArray("transactions");
+                    for (int i = 0; i < txArray.size(); i++) {
+                        JsonObject txJson = txArray.get(i).getAsJsonObject();
+                        SettlementTransaction tx = new SettlementTransaction();
+                        tx.transactionId = txJson.has("transaction_id") ? txJson.get("transaction_id").getAsString() : "";
+                        tx.rrn = txJson.has("rrn") ? txJson.get("rrn").getAsString() : "";
+                        tx.amount = txJson.has("amount") ? String.valueOf((int)(txJson.get("amount").getAsDouble() * 100)) : "0";
+                        tx.pan = txJson.has("pan") ? txJson.get("pan").getAsString() : "";
+                        tx.authCode = txJson.has("auth_code") ? txJson.get("auth_code").getAsString() : "";
+                        tx.transactionType = txJson.has("transaction_type") ? txJson.get("transaction_type").getAsString() : "00";
+                        tx.status = txJson.has("status") ? txJson.get("status").getAsString() : "";
+                        settledTransactions.add(tx);
+                    }
+                }
+                
                 String message = json.has("message") ? json.get("message").getAsString()
                         : "Batch upload completed successfully";
                 
@@ -271,9 +414,20 @@ public class SettlementApiServiceImpl implements SettlementApiService {
                 LogUtil.e(TAG, "  Batch ID: " + batchId);
                 LogUtil.e(TAG,
                         "  Total: " + totalCount + ", Accepted: " + acceptedCount + ", Rejected: " + rejectedCount);
+                LogUtil.e(TAG, "  Sales: " + totals.countSales + " transactions, Total: " + totals.totalSales + " " + totals.currency);
+                LogUtil.e(TAG, "  Refunds: " + totals.countRefund + " transactions, Total: " + totals.totalRefund + " " + totals.currency);
+                LogUtil.e(TAG, "  Voids: " + totals.countVoid + " transactions, Total: " + totals.totalVoid + " " + totals.currency);
+                LogUtil.e(TAG, "  Declined: " + totals.countDeclined + " transactions, Total: " + totals.totalDeclined + " " + totals.currency);
+                LogUtil.e(TAG, "  Grand Total (Sales - Refunds - Voids): " + totals.grandTotal + " " + totals.currency);
                 
-                return BatchUploadResponse.success(batchId, totalCount, acceptedCount, rejectedCount, acceptedRrns,
-                        rejectedRrns);
+                BatchUploadResponse response = BatchUploadResponse.success(batchId, totalCount, acceptedCount, rejectedCount, acceptedRrns, rejectedRrns);
+                response.batchNumber = batchNumber;
+                response.batchDate = batchDate;
+                response.batchTime = batchTime;
+                response.terminalId = terminalId;
+                response.totals = totals;
+                response.transactions = settledTransactions;
+                return response;
             } else {
                 String message = json.has("message") ? json.get("message").getAsString() : "Batch upload failed";
                 LogUtil.e(TAG, "❌ Settlement batch upload failed: " + message);
@@ -341,5 +495,21 @@ public class SettlementApiServiceImpl implements SettlementApiService {
         json = json.replaceAll("\"field55\"\\s*:\\s*\"([^\"]{8})([^\"]*)([^\"]{8})\"", "\"field55\":\"$1****$3\"");
         
         return json;
+    }
+    
+    /**
+     * Helper method to parse brand transaction totals from JSON
+     */
+    private SettlementApiService.BrandTransactionTotals parseBrandTransactionTotals(JsonObject brandObj, String type) {
+        SettlementApiService.BrandTransactionTotals totals = new SettlementApiService.BrandTransactionTotals();
+        if (brandObj.has(type)) {
+            JsonObject typeObj = brandObj.getAsJsonObject(type);
+            totals.count = typeObj.has("count") ? typeObj.get("count").getAsInt() : 0;
+            totals.total = typeObj.has("total") ? typeObj.get("total").getAsString() : "0.00";
+        } else {
+            totals.count = 0;
+            totals.total = "0.00";
+        }
+        return totals;
     }
 }

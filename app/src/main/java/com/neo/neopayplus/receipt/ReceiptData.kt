@@ -30,6 +30,7 @@ data class ReceiptData(
     val cardType: String? = null, // DEBIT or CREDIT
     val maskedPan: String? = null,
     val maskedExpiryDate: String? = null, // Expiry date masked for display (e.g., "**/25" or "12/**")
+    val cardholderName: String? = null, // Cardholder name from EMV tag 5F20
     val transactionType: ReceiptTransactionType, // SALE, REFUND, VOID
     val entryMode: ReceiptEntryMode, // CONTACTLESS, IC
     val amount: BigDecimal,

@@ -66,6 +66,22 @@
             android:launchMode="singleTop"
             android:theme="@style/AppTheme" />
         
+        <!-- Refund Activity - Starts with RRN input for refunds -->
+        <activity
+            android:name=".ui.activities.RefundActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme" />
+        
+        <!-- Void Activity - Starts with transaction ID input for voids -->
+        <activity
+            android:name=".ui.activities.VoidActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme" />
+        
         <!-- Processing Activity - Shows transaction processing status -->
         <activity
             android:name=".ui.activities.ProcessingActivity"

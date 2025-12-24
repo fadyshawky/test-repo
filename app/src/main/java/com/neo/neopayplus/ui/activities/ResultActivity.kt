@@ -56,6 +56,7 @@ class ResultActivity : ComponentActivity() {
             if (intent.hasExtra("tvr")) putExtra("tvr", intent.getStringExtra("tvr"))
             if (intent.hasExtra("tsi")) putExtra("tsi", intent.getStringExtra("tsi"))
             if (intent.hasExtra("maskedExpiryDate")) putExtra("maskedExpiryDate", intent.getStringExtra("maskedExpiryDate"))
+            if (intent.hasExtra("cardholderName")) putExtra("cardholderName", intent.getStringExtra("cardholderName"))
         }
         startActivity(receiptIntent)
         finish() // Finish ResultActivity after navigating

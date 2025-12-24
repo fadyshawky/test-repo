@@ -1,6 +1,9 @@
 package com.neo.neopayplus.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,8 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.neo.neopayplus.data.TransactionJournal
+import com.neo.neopayplus.receipt.ReceiptDataMapper
+import com.neo.neopayplus.ui.activities.ReceiptActivity
 import com.neo.neopayplus.ui.theme.Background
 import com.neo.neopayplus.ui.theme.IndigoBlue
 import com.neo.neopayplus.ui.theme.MutedLavender
@@ -19,6 +25,7 @@ import java.math.RoundingMode
 @Composable
 fun HistoryScreen() {
     val transactions = remember { TransactionJournal.getAllTransactions() }
+    val context = LocalContext.current
     
     Column(
         Modifier
@@ -51,7 +58,13 @@ fun HistoryScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(transactions) { tx ->
-                    TransactionCard(transaction = tx)
+                    TransactionCard(
+                        transaction = tx,
+                        onReprint = { 
+                            // Navigate to ReceiptActivity with transaction data for reprint
+                            navigateToReceiptForReprint(context, tx)
+                        }
+                    )
                 }
             }
         }
@@ -59,7 +72,10 @@ fun HistoryScreen() {
 }
 
 @Composable
-fun TransactionCard(transaction: TransactionJournal.TransactionRecord) {
+fun TransactionCard(
+    transaction: TransactionJournal.TransactionRecord,
+    onReprint: () -> Unit
+) {
     val statusColor = when (transaction.status) {
         "APPROVED" -> IndigoBlue
         "DECLINED" -> MaterialTheme.colorScheme.error
@@ -90,17 +106,41 @@ fun TransactionCard(transaction: TransactionJournal.TransactionRecord) {
                     style = MaterialTheme.typography.titleMedium,
                     color = statusColor
                 )
-                if (transaction.isReversal) {
-                    Surface(
-                        color = MutedLavender.copy(alpha = 0.2f),
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            "REVERSAL",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedLavender
-                        )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    // Show transaction type badge
+                    val transactionTypeBadge = when (transaction.transactionType) {
+                        "20" -> "REFUND"
+                        "40" -> "VOID"
+                        else -> null
+                    }
+                    if (transactionTypeBadge != null) {
+                        Surface(
+                            color = MutedLavender.copy(alpha = 0.2f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                transactionTypeBadge,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MutedLavender
+                            )
+                        }
+                    }
+                    if (transaction.isReversal) {
+                        Surface(
+                            color = MutedLavender.copy(alpha = 0.2f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                "REVERSAL",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MutedLavender
+                            )
+                        }
                     }
                 }
             }
@@ -153,7 +193,81 @@ fun TransactionCard(transaction: TransactionJournal.TransactionRecord) {
                     Text(transaction.responseCode, color = MutedLavender, style = MaterialTheme.typography.bodySmall)
                 }
             }
+            
+            // Reprint button (only for approved transactions)
+            if ("APPROVED" == transaction.status && "00" == transaction.responseCode) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onReprint,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = IndigoBlue
+                    )
+                ) {
+                    Text("Reprint Receipt")
+                }
+            }
         }
     }
+}
+
+/**
+ * Navigate to ReceiptActivity with transaction data for reprint
+ */
+private fun navigateToReceiptForReprint(context: Context, transaction: TransactionJournal.TransactionRecord) {
+    val amount = try {
+        transaction.amount?.toLongOrNull()?.let { 
+            BigDecimal(it).movePointLeft(2).toDouble() 
+        } ?: 0.0
+    } catch (e: Exception) {
+        0.0
+    }
+    
+    // Map transaction type
+    val transactionType = when (transaction.transactionType) {
+        "20" -> "REFUND"
+        "40" -> "VOID"
+        else -> "SALE"
+    }
+    
+    // Use saved entry mode from TransactionJournal, default to IC if not available
+    val entryMode = transaction.entryMode ?: "IC"
+    
+    val intent = Intent(context, ReceiptActivity::class.java).apply {
+        putExtra("approved", "APPROVED" == transaction.status)
+        putExtra("rrn", transaction.rrn)
+        putExtra("amount", amount)
+        putExtra("currency", transaction.currencyCode ?: "EGP")
+        putExtra("cardPan", transaction.pan)
+        putExtra("aid", transaction.aid) // Use saved AID from TransactionJournal
+        putExtra("applicationPreferredName", null as String?)
+        putExtra("entryMode", entryMode)
+        putExtra("transactionType", transactionType)
+        putExtra("authCode", transaction.authCode)
+        putExtra("responseCode", transaction.responseCode)
+        putExtra("responseMessage", if ("00" == transaction.responseCode) "APPROVED" else "DECLINED")
+        putExtra("stan", 0) // TransactionJournal doesn't store STAN
+        putExtra("cvmMethod", "NO_PIN") // Default, TransactionJournal doesn't store CVM
+        putExtra("isReprint", true) // Flag to indicate this is a reprint
+        // Convert date/time format: YYMMDD -> yyyy-MM-dd, HHMMSS -> HH:mm:ss
+        val formattedDate = transaction.date?.let { dateStr ->
+            if (dateStr.length == 6) {
+                val year = "20${dateStr.substring(0, 2)}"
+                val month = dateStr.substring(2, 4)
+                val day = dateStr.substring(4, 6)
+                "$year-$month-$day"
+            } else null
+        }
+        val formattedTime = transaction.time?.let { timeStr ->
+            if (timeStr.length == 6) {
+                "${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}:${timeStr.substring(4, 6)}"
+            } else null
+        }
+        putExtra("cardholderName", transaction.cardholderName)
+        putExtra("date", formattedDate ?: "")
+        putExtra("time", formattedTime ?: "")
+    }
+    
+    context.startActivity(intent)
 }
 

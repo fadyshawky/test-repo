@@ -1,27 +1,36 @@
 package com.neo.neopayplus.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.BitmapFactory
+import com.neo.neopayplus.MyApplication
 import com.neo.neopayplus.receipt.ReceiptData
 import com.neo.neopayplus.ui.theme.Background
 import com.neo.neopayplus.ui.theme.IndigoBlue
 import com.neo.neopayplus.ui.theme.MutedLavender
 import com.neo.neopayplus.ui.theme.White
+import java.io.IOException
 import java.text.DecimalFormat
 
 @Composable
 fun ReceiptScreen(
     receiptData: ReceiptData,
     approved: Boolean,
+    isReprint: Boolean = false,
     onPrintCustomerCopy: () -> Unit,
     onCancelCustomerCopy: () -> Unit,
     onShare: () -> Unit,
@@ -57,47 +66,65 @@ fun ReceiptScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Merchant Logo
-                Text("Merchant Logo", fontSize = 10.sp, color = MutedLavender, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                // Header with merchant logo
+                val merchantLogoPath = receiptData.merchantLogoAssetPath ?: "images/receipt_logo.webp"
+                val merchantLogoBitmap = remember(merchantLogoPath) { 
+                    loadLogoFromAssetNonComposable(merchantLogoPath) 
+                }
+                merchantLogoBitmap?.let { bitmap ->
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Merchant Logo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.Center
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                // Order ID
-                createLabelValueRow("Order ID", receiptData.orderId ?: "ORD123456789")
+                // Terminal ID and Transaction ID (matching receipt builder)
+                createLabelValueRow(receiptData.internalTerminalId, receiptData.transactionId ?: "TXN987654321")
                 
-                // Transaction ID
-                createLabelValueRow("Transaction ID", receiptData.transactionId ?: "TXN987654321")
+                // Transaction ID and Order ID (matching receipt builder)
+                createLabelValueRow(receiptData.transactionId ?: "TXN987654321", receiptData.orderId ?: "ORD123456789")
                 
-                if (approved) {
-                    // Approved: Internal Terminal ID and Merchant ID (TID/MID labels)
-                    createLabelValueRow("TID", receiptData.internalTerminalId)
-                    createLabelValueRow("MID", receiptData.internalMerchantId)
-                    
-                    // Bank Logo (only for approved)
+                // Bank logo
+                val bankLogoPath = receiptData.bankLogoAssetPath ?: "images/banque_misr_logo.png"
+                val bankLogoBitmap = remember(bankLogoPath) { 
+                    loadLogoFromAssetNonComposable(bankLogoPath) 
+                }
+                bankLogoBitmap?.let { bitmap ->
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Bank Logo", fontSize = 10.sp, color = MutedLavender, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    // Bank Terminal ID and Bank Merchant ID
-                    createLabelValueRow("TID", receiptData.bankTerminalId ?: "00000001")
-                    createLabelValueRow("MID", receiptData.bankMerchantId ?: "00000001")
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Bank Logo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.Center
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Bank Terminal ID and Bank Merchant ID
+                createLabelValueRow("TID", receiptData.bankTerminalId ?: "00000001")
+                createLabelValueRow("MID", receiptData.bankMerchantId ?: "00000001")
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Card Brand with Card Type (e.g., "MASTERCARD DEBIT", "VISA CREDIT")
+                val brandWithType = if (receiptData.cardBrand != null && receiptData.cardType != null) {
+                    "${receiptData.cardBrand} ${receiptData.cardType}"
                 } else {
-                    // Declined: Internal Terminal ID and Merchant ID (full labels)
-                    createLabelValueRow("Terminal ID", receiptData.internalTerminalId)
-                    createLabelValueRow("Merchant ID", receiptData.internalMerchantId)
+                    receiptData.cardBrand ?: ""
                 }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // Card Brand and Transaction Type + PAN (centered, bold, large)
-                val transactionTypeText = when (receiptData.transactionType) {
-                    com.neo.neopayplus.receipt.ReceiptTransactionType.SALE -> "SALE"
-                    com.neo.neopayplus.receipt.ReceiptTransactionType.REFUND -> "REFUND"
-                    com.neo.neopayplus.receipt.ReceiptTransactionType.VOID -> "VOID"
-                }
-                val brandTypeText = "${receiptData.cardBrand ?: ""} $transactionTypeText"
                 Text(
-                    brandTypeText,
+                    brandWithType.uppercase(),
                     modifier = Modifier.fillMaxWidth(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -105,7 +132,9 @@ fun ReceiptScreen(
                     color = IndigoBlue
                 )
                 
-                // PAN (on same line as brand/type in printed receipt, but separate line in UI for clarity)
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // PAN on separate line
                 Text(
                     receiptData.maskedPan ?: "",
                     modifier = Modifier.fillMaxWidth(),
@@ -134,25 +163,32 @@ fun ReceiptScreen(
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                // Batch and Receipt (combined on one line)
-                val batchReceiptText = "BATCH:${receiptData.batchNumber ?: "001"} RECEIPT:${receiptData.receiptNumber ?: "000001"}"
-                createLabelValueRow("", batchReceiptText)
+                // Batch and Receipt (matching receipt builder format)
+                createLabelValueRow("BATCH:${receiptData.batchNumber ?: "001"}", "RECEIPT:${receiptData.receiptNumber ?: "000001"}")
                 
-                // Date and Time (combined on one line)
-                val dateTimeText = "DATE:${receiptData.date} TIME:${receiptData.time}"
-                createLabelValueRow("", dateTimeText)
+                // Date and Time (matching receipt builder format)
+                createLabelValueRow("DATE:${receiptData.date}", "TIME:${receiptData.time}")
                 
-                if (approved) {
-                    // Approved: RRN and AUTH (combined on one line)
-                    val rrnAuthText = "RRN:${receiptData.rrn ?: "123456789012"} AUTH:${receiptData.authCode ?: "AUTH123"}"
-                    createLabelValueRow("", rrnAuthText)
-                } else {
-                    // Declined: RRN only (no AUTH)
-                    createLabelValueRow("RRN", receiptData.rrn ?: "")
-                }
+                // RRN and AUTH (matching receipt builder format)
+                createLabelValueRow("RRN:${receiptData.rrn ?: "123456789012"}", "AUTH:${receiptData.authCode ?: "AUTH123"}")
                 
                 // AID (always shown)
                 createLabelValueRow("AID", receiptData.aid ?: "")
+                
+                // Expiry date (masked for display)
+                if (receiptData.maskedExpiryDate != null && receiptData.maskedExpiryDate.isNotEmpty()) {
+                    createLabelValueRow("EXP", receiptData.maskedExpiryDate)
+                }
+                
+                // TVR (Terminal Verification Results) - tag 95
+                if (receiptData.tvr != null && receiptData.tvr.isNotEmpty()) {
+                    createLabelValueRow("TVR", receiptData.tvr)
+                }
+                
+                // TSI (Transaction Status Information) - tag 9B
+                if (receiptData.tsi != null && receiptData.tsi.isNotEmpty()) {
+                    createLabelValueRow("TSI", receiptData.tsi)
+                }
                 
                 // Amount
                 val formattedAmount = amountFormatter.format(receiptData.amount) + " ${receiptData.currency}"
@@ -160,9 +196,19 @@ fun ReceiptScreen(
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                // Status (centered, bold, large)
+                // Status and Transaction Type combined (e.g., "SALE APPROVED", "REFUND DECLINED")
+                val statusTransactionTypeText = when (receiptData.transactionType) {
+                    com.neo.neopayplus.receipt.ReceiptTransactionType.SALE -> "SALE"
+                    com.neo.neopayplus.receipt.ReceiptTransactionType.REFUND -> "REFUND"
+                    com.neo.neopayplus.receipt.ReceiptTransactionType.VOID -> "VOID"
+                }
+                val statusText = if (approved) {
+                    "$statusTransactionTypeText APPROVED"
+                } else {
+                    "$statusTransactionTypeText DECLINED"
+                }
                 Text(
-                    if (approved) "APPROVED" else "DECLINED",
+                    statusText,
                     modifier = Modifier.fillMaxWidth(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -187,6 +233,20 @@ fun ReceiptScreen(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         color = MutedLavender
                     )
+                    
+                    // Authorization text (for customer copy, matching receipt builder)
+                    if (!isReprint) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "I authorize to debit the above amount from my account, " +
+                                    "i confirm receipt of merchandise inside the shop and in a good condition, " +
+                                    "all sales final. I acknowledge and accept the time of transaction",
+                            modifier = Modifier.fillMaxWidth(),
+                            fontSize = 10.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = MutedLavender
+                        )
+                    }
                 } else {
                     // Declined: Response Code and Message (if available)
                     if (receiptData.responseCode != null) {
@@ -208,6 +268,22 @@ fun ReceiptScreen(
                         )
                     }
                 }
+                
+                // Copy type (matching receipt builder)
+                val copyType = if (isReprint) {
+                    "REPRINT"
+                } else {
+                    "CUSTOMER COPY"
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    copyType,
+                    modifier = Modifier.fillMaxWidth(),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    color = IndigoBlue
+                )
                 }
             }
         }
@@ -219,7 +295,15 @@ fun ReceiptScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (approved) {
+            if (isReprint) {
+                // For reprint: Show "Reprint" button
+                Button(
+                    onClick = onPrintCustomerCopy,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) {
+                    Text("Reprint", color = White)
+                }
+            } else if (approved) {
                 // For approved: Show "Print Customer Copy" button (merchant copy already printed)
                 Button(
                     onClick = onPrintCustomerCopy,
@@ -251,21 +335,31 @@ fun ReceiptScreen(
 private fun createLabelValueRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (label.isEmpty()) Arrangement.Start else Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        if (label.isNotEmpty()) {
-            Text(
-                label, // No colon, matching receipt builder
-                fontSize = 12.sp,
-                color = MutedLavender
-            )
-        }
+        Text(
+            label,
+            fontSize = 12.sp,
+            color = MutedLavender
+        )
         Text(
             value,
             fontSize = 12.sp,
             color = IndigoBlue,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+private fun loadLogoFromAssetNonComposable(assetPath: String): android.graphics.Bitmap? {
+    return try {
+        val inputStream = MyApplication.app.assets.open(assetPath)
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+        bitmap
+    } catch (e: IOException) {
+        android.util.Log.e("ReceiptScreen", "Failed to load logo from asset '$assetPath': ${e.message}", e)
+        null
     }
 }
 

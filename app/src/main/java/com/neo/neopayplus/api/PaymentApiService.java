@@ -351,7 +351,8 @@ public interface PaymentApiService {
     class ReversalRequest {
         public String terminalId;
         public String merchantId;
-        public String rrn; // Retrieval Reference Number to reverse
+        public String transactionId; // Transaction ID to reverse (preferred over RRN)
+        public String rrn; // Retrieval Reference Number to reverse (deprecated, use transactionId)
         public String amount; // Original transaction amount
         public String currencyCode; // Currency code (e.g., "818" for EGP)
         public String reversalReason; // Reason for reversal (e.g., "HOST_TIMEOUT", "USER_REQUEST")
@@ -359,7 +360,8 @@ public interface PaymentApiService {
         @Override
         public String toString() {
             return "ReversalRequest{" +
-                    "rrn='" + rrn + '\'' +
+                    "transactionId='" + transactionId + '\'' +
+                    ", rrn='" + rrn + '\'' +
                     ", amount='" + amount + '\'' +
                     ", terminalId='" + terminalId + '\'' +
                     ", reason='" + reversalReason + '\'' +

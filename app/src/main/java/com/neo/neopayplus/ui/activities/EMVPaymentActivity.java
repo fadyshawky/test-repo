@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.net.SocketTimeoutException;
+import java.io.IOException;
 
 /**
  * EMV Payment Activity - Complete payment flow using EMVHandler
@@ -95,6 +97,8 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
     private int currentStan = 0;
     private int currentPinType = -1; // -1=no pin, 0=online, 1=offline, -99=manual
     private boolean signatureRequired = false;
+    private String cvmListHex = null; // CVM List (8E) read during transaction
+    private String currentTransactionType = "purchase"; // "purchase", "refund", or "void"
 
     // API response data (for receipt)
     private PaymentApiService.AuthorizationResponse apiResponse = null;
@@ -135,11 +139,35 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         if (transactionType == null) {
             transactionType = "purchase";
         }
+        currentTransactionType = transactionType; // Set instance variable for receipt generation
+        Log.e(TAG, "✓ Transaction type set from intent: " + currentTransactionType);
         viewModel.setTransactionType(transactionType);
 
-        String amountStr = getIntent().getStringExtra("amount");
-        if (amountStr != null && !amountStr.isEmpty()) {
-            // Amount passed via intent - skip amount entry
+        // Check if amount was pre-filled (from RefundActivity as double or from intent as string)
+        // Check for Double first to avoid ClassCastException
+        double amountDouble = getIntent().getDoubleExtra("amount", -1.0);
+        String amountStr = null;
+        
+        // Only try to get as String if Double was not found (to avoid ClassCastException)
+        if (amountDouble <= 0) {
+            try {
+                amountStr = getIntent().getStringExtra("amount");
+            } catch (ClassCastException e) {
+                // Amount was passed as Double, ignore and use amountDouble
+                amountStr = null;
+            }
+        }
+        
+        if (amountDouble > 0) {
+            // Amount passed via intent as double (from RefundActivity/VoidActivity) - skip amount entry
+            selectedAid = null; // Reset AID for new transaction
+            BigDecimal amount = BigDecimal.valueOf(amountDouble);
+            viewModel.setAmount(amount);
+            currentAmount = amountDouble; // Store amount for receipt
+            showCardProcessingScreen();
+            viewModel.startPayment();
+        } else if (amountStr != null && !amountStr.isEmpty()) {
+            // Amount passed via intent as string - skip amount entry
             selectedAid = null; // Reset AID for new transaction
             BigDecimal amount = new BigDecimal(amountStr);
             viewModel.setAmount(amount);
@@ -317,6 +345,8 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         currentStan = 0;
         currentPinType = -1;
         signatureRequired = false;
+        cvmListHex = null;
+        // Note: currentTransactionType is preserved from intent, not reset
 
         // Set amount in ViewModel and store locally for receipt
         viewModel.setAmount(amount);
@@ -368,8 +398,8 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         tvStatus.setText("Present Card\nTap, insert, or swipe");
         ivCardIcon.setImageResource(R.drawable.ic_nfc);
 
-        // Start card detection
-        emvHandler.startCardDetection(amountMinor12, 60);
+        // Start card detection with transaction type for SAM processing
+        emvHandler.startCardDetection(amountMinor12, 60, currentTransactionType);
     }
 
     private void onCancelClicked() {
@@ -434,6 +464,15 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
 
                 case CARD_DATA_EXCHANGE_COMPLETE:
                     tvStatus.setText("Reading card data...");
+                    // Read CVM List (8E) while it's available
+                    try {
+                        cvmListHex = emvHandler.readTlv("8E");
+                        if (cvmListHex != null && !cvmListHex.isEmpty()) {
+                            Log.e(TAG, "✓ CVM List (8E) read during transaction: " + cvmListHex);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to read CVM List (8E) during transaction: " + e.getMessage());
+                    }
                     break;
 
                 case EMV_SHOW_PIN_PAD:
@@ -503,7 +542,7 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                     if (emvHandler != null) {
                         EmvPaymentViewModel.UiState state = viewModel.getUiStateLiveData().getValue();
                         String amountMinor12 = state != null ? state.getAmountMinor12() : "000000000000";
-                        emvHandler.startCardDetection(amountMinor12, 60);
+                        emvHandler.startCardDetection(amountMinor12, 60, currentTransactionType);
                     } else {
                         Log.e(TAG, "TRANS_PRESENT_CARD: emvHandler is null, cannot restart detection");
                         showError("EMV handler not available");
@@ -711,6 +750,313 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
     private void handleOnlineProcess() {
         tvStatus.setText("Processing online authorization...");
 
+        // For PIN detection: CVM List (8E) takes precedence (especially for Mastercard)
+        // Mastercard-specific logic:
+        // - If CVM List has only ONE rule: Apply it regardless of amount
+        // - If CVM List has multiple rules:
+        // - If amount < 600 EGP: No CVM
+        // - If amount >= 600 EGP: Process rules in priority order (PIN > Signature > No
+        // CVM)
+        boolean pinRequiredFromCvmList = false;
+        int requiredPinType = 0; // 0=online, 1=offline
+        boolean cvmListHasOnlyPinRules = false; // Track if CVM List contains ONLY PIN rules
+        boolean cvmListHasSignatureRule = false; // Track if CVM List has signature rule
+        boolean cvmListHasNoCvmRule = false; // Track if CVM List has "No CVM" rule
+        int cvmListRuleCount = 0; // Count total number of rules in CVM List
+        boolean isMastercard = false; // Track if this is a Mastercard transaction
+
+        // Check if this is Mastercard (AID starts with A000000004 or A000000005)
+        try {
+            String aid = selectedAid;
+            if (aid == null || aid.isEmpty()) {
+                aid = emvHandler.readTlv("4F");
+                if (aid == null || aid.isEmpty()) {
+                    aid = emvHandler.readTlv("9F06");
+                }
+            }
+            if (aid != null) {
+                String aidUpper = aid.toUpperCase();
+                if (aidUpper.startsWith("A000000004") || aidUpper.startsWith("A000000005")) {
+                    isMastercard = true;
+                    Log.e(TAG, "✓ Mastercard detected (AID: " + aid + ") - applying Mastercard CVM logic");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to check AID for Mastercard: " + e.getMessage());
+        }
+
+        try {
+            // Use stored CVM List if available, otherwise try to read it
+            if (cvmListHex == null || cvmListHex.isEmpty()) {
+                cvmListHex = emvHandler.readTlv("8E");
+            }
+            if (cvmListHex != null && !cvmListHex.isEmpty()) {
+                // Parse CVM List: skip X Amount (8 bytes) and Y Amount (8 bytes), then check
+                // rules IN ORDER
+                if (cvmListHex.length() >= 16) {
+                    // First pass: Count rules and identify rule types
+                    int i = 16;
+                    while (i + 4 <= cvmListHex.length()) {
+                        String rule = cvmListHex.substring(i, i + 4);
+                        String cvmCode = rule.substring(0, 2).toUpperCase();
+                        String cvmCondition = rule.substring(2, 4).toUpperCase();
+                        int condition = Integer.parseInt(cvmCondition, 16);
+
+                        // Check if condition applies: 03 = "If terminal supports the CVM", 00 =
+                        // "Always"
+                        boolean conditionApplies = (condition == 0x00 || condition == 0x03);
+                        if (conditionApplies) {
+                            cvmListRuleCount++;
+
+                            // Extract lower 6 bits for CVM method (ignore bit 7 which is "apply next if
+                            // fails")
+                            int cvmCodeInt = Integer.parseInt(cvmCode, 16);
+                            int cvmMethod = cvmCodeInt & 0x3F; // Lower 6 bits
+                            String cvmMethodHex = String.format("%02X", cvmMethod);
+
+                            // Check for PIN rules
+                            if ("01".equals(cvmMethodHex) || "02".equals(cvmMethodHex) || "04".equals(cvmMethodHex)
+                                    || "05".equals(cvmMethodHex) || "42".equals(cvmCode)) {
+                                // PIN rule found
+                            }
+
+                            // Check for signature rule (1E)
+                            if ("1E".equals(cvmCode)) {
+                                cvmListHasSignatureRule = true;
+                            }
+
+                            // Check for "No CVM required" (1F)
+                            if ("1F".equals(cvmCode)) {
+                                cvmListHasNoCvmRule = true;
+                            }
+                        }
+                        i += 4;
+                    }
+
+                    Log.e(TAG, "CVM List analysis - Rule count: " + cvmListRuleCount + ", Has PIN: "
+                            + (pinRequiredFromCvmList ? "Yes" : "No") + ", Has Signature: "
+                            + (cvmListHasSignatureRule ? "Yes" : "No") + ", Has No CVM: "
+                            + (cvmListHasNoCvmRule ? "Yes" : "No"));
+
+                    // Mastercard-specific logic
+                    if (isMastercard) {
+                        // Get amount in minor units (600 EGP = 60000 minor units)
+                        long amountMinorUnits = (long) (currentAmount * 100);
+                        boolean amountBelowThreshold = amountMinorUnits < 60000;
+
+                        if (cvmListRuleCount == 1) {
+                            // Single rule: Apply it regardless of amount
+                            Log.e(TAG, "✓ Mastercard: CVM List has only ONE rule - applying it regardless of amount ("
+                                    + currentAmount + " EGP)");
+                            // Process the single rule
+                            i = 16;
+                            while (i + 4 <= cvmListHex.length()) {
+                                String rule = cvmListHex.substring(i, i + 4);
+                                String cvmCode = rule.substring(0, 2).toUpperCase();
+                                String cvmCondition = rule.substring(2, 4).toUpperCase();
+                                int condition = Integer.parseInt(cvmCondition, 16);
+                                boolean conditionApplies = (condition == 0x00 || condition == 0x03);
+
+                                if (conditionApplies) {
+                                    int cvmCodeInt = Integer.parseInt(cvmCode, 16);
+                                    int cvmMethod = cvmCodeInt & 0x3F;
+                                    String cvmMethodHex = String.format("%02X", cvmMethod);
+
+                                    // Check for PIN rules
+                                    if ("01".equals(cvmMethodHex) || "02".equals(cvmMethodHex)
+                                            || "04".equals(cvmMethodHex) || "05".equals(cvmMethodHex)
+                                            || "42".equals(cvmCode)) {
+                                        pinRequiredFromCvmList = true;
+                                        if ("01".equals(cvmMethodHex) || "04".equals(cvmMethodHex)) {
+                                            requiredPinType = 1; // Offline PIN
+                                        } else {
+                                            requiredPinType = 0; // Online PIN
+                                        }
+                                        Log.e(TAG, "✓ Mastercard: Single PIN rule applied - code: " + cvmCode
+                                                + " (method: " + cvmMethodHex + "), type: "
+                                                + (requiredPinType == 0 ? "Online" : "Offline"));
+                                        break;
+                                    }
+                                }
+                                i += 4;
+                            }
+                        } else if (cvmListRuleCount > 1) {
+                            // Multiple rules: Check amount threshold
+                            if (amountBelowThreshold) {
+                                // Amount < 600 EGP: No CVM
+                                Log.e(TAG, "✓ Mastercard: Multiple rules, amount < 600 EGP (" + currentAmount
+                                        + " EGP) - No CVM");
+                                pinRequiredFromCvmList = false;
+                            } else {
+                                // Amount >= 600 EGP: Process rules in priority order (PIN > Signature > No CVM)
+                                Log.e(TAG, "✓ Mastercard: Multiple rules, amount >= 600 EGP (" + currentAmount
+                                        + " EGP) - processing rules in priority order");
+                                i = 16;
+                                while (i + 4 <= cvmListHex.length()) {
+                                    String rule = cvmListHex.substring(i, i + 4);
+                                    String cvmCode = rule.substring(0, 2).toUpperCase();
+                                    String cvmCondition = rule.substring(2, 4).toUpperCase();
+                                    int condition = Integer.parseInt(cvmCondition, 16);
+                                    boolean conditionApplies = (condition == 0x00 || condition == 0x03);
+
+                                    if (conditionApplies) {
+                                        int cvmCodeInt = Integer.parseInt(cvmCode, 16);
+                                        int cvmMethod = cvmCodeInt & 0x3F;
+                                        String cvmMethodHex = String.format("%02X", cvmMethod);
+
+                                        // Check for PIN rules first (highest priority)
+                                        if ("01".equals(cvmMethodHex) || "02".equals(cvmMethodHex)
+                                                || "04".equals(cvmMethodHex) || "05".equals(cvmMethodHex)
+                                                || "42".equals(cvmCode)) {
+                                            pinRequiredFromCvmList = true;
+                                            if ("01".equals(cvmMethodHex) || "04".equals(cvmMethodHex)) {
+                                                requiredPinType = 1; // Offline PIN
+                                            } else {
+                                                requiredPinType = 0; // Online PIN
+                                            }
+                                            Log.e(TAG, "✓ Mastercard: PIN rule found in priority order - code: "
+                                                    + cvmCode + " (method: " + cvmMethodHex + "), type: "
+                                                    + (requiredPinType == 0 ? "Online" : "Offline"));
+                                            break; // PIN takes priority, stop processing
+                                        }
+                                    }
+                                    i += 4;
+                                }
+                            }
+                        }
+                    } else {
+                        // Non-Mastercard: Process rules in order (original logic)
+                        i = 16;
+                        while (i + 4 <= cvmListHex.length()) {
+                            String rule = cvmListHex.substring(i, i + 4);
+                            String cvmCode = rule.substring(0, 2).toUpperCase();
+                            String cvmCondition = rule.substring(2, 4).toUpperCase();
+                            int condition = Integer.parseInt(cvmCondition, 16);
+                            boolean conditionApplies = (condition == 0x00 || condition == 0x03);
+
+                            if (conditionApplies) {
+                                int cvmCodeInt = Integer.parseInt(cvmCode, 16);
+                                int cvmMethod = cvmCodeInt & 0x3F;
+                                String cvmMethodHex = String.format("%02X", cvmMethod);
+
+                                // Check for PIN rules
+                                if ("01".equals(cvmMethodHex) || "02".equals(cvmMethodHex)
+                                        || "04".equals(cvmMethodHex) || "05".equals(cvmMethodHex)
+                                        || "42".equals(cvmCode)) {
+                                    pinRequiredFromCvmList = true;
+                                    if ("01".equals(cvmMethodHex) || "04".equals(cvmMethodHex)) {
+                                        requiredPinType = 1; // Offline PIN
+                                    } else {
+                                        requiredPinType = 0; // Online PIN
+                                    }
+                                    Log.e(TAG, "✓ PIN required from CVM List (8E) - code: " + cvmCode
+                                            + " (method: " + cvmMethodHex + "), condition: " + cvmCondition
+                                            + ", type: " + (requiredPinType == 0 ? "Online" : "Offline"));
+                                    break;
+                                }
+
+                                // Check for "No CVM required" (1F)
+                                if ("1F".equals(cvmCode)) {
+                                    if (!pinRequiredFromCvmList) {
+                                        break; // No PIN found before this, so No CVM applies
+                                    }
+                                }
+                            }
+                            i += 4;
+                        }
+                    }
+
+                    // Determine if CVM List has ONLY PIN rules (for non-Mastercard logic)
+                    if (pinRequiredFromCvmList && !cvmListHasSignatureRule && !cvmListHasNoCvmRule) {
+                        cvmListHasOnlyPinRules = true;
+                        Log.e(TAG,
+                                "✓ CVM List contains ONLY PIN rules - will trigger PIN entry even if CVM Result is 3F");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to check CVM List for PIN requirement: " + e.getMessage());
+        }
+
+        // Check CVM Result (9F34) - for Mastercard, always prioritize CVM List
+        // For Mastercard: Ignore CVM Result 3F if CVM List requires PIN (single rule or
+        // multiple rules with amount >= 600 EGP)
+        // For non-Mastercard: Respect CVM Result 3F only if CVM List has multiple rules
+        boolean cvmResultIndicatesNoCvm = false;
+        try {
+            String cvmResultHex = emvHandler.readTlv("9F34");
+            if (cvmResultHex != null && !cvmResultHex.isEmpty()) {
+                // Extract first byte (CVM code)
+                String cvmCode = null;
+                if (cvmResultHex.length() >= 2) {
+                    if (cvmResultHex.startsWith("9F34")) {
+                        // TLV format: 9F34 + length + value
+                        if (cvmResultHex.length() >= 6) {
+                            String lengthHex = cvmResultHex.substring(4, 6);
+                            int length = Integer.parseInt(lengthHex, 16);
+                            if (cvmResultHex.length() >= 6 + length * 2 && length >= 1) {
+                                cvmCode = cvmResultHex.substring(6, 8).toUpperCase();
+                            }
+                        }
+                    } else {
+                        // Direct hex value
+                        cvmCode = cvmResultHex.substring(0, 2).toUpperCase();
+                    }
+                }
+                if (cvmCode != null) {
+                    // CVM code 3F = No CVM required/performed
+                    if ("3F".equals(cvmCode)) {
+                        cvmResultIndicatesNoCvm = true;
+                        if (isMastercard) {
+                            // For Mastercard, always prioritize CVM List - ignore CVM Result 3F
+                            Log.e(TAG,
+                                    "⚠️ Mastercard: CVM Result (9F34) indicates No CVM (3F), but prioritizing CVM List - ignoring CVM Result");
+                        } else if (cvmListHasOnlyPinRules) {
+                            Log.e(TAG,
+                                    "⚠️ CVM Result (9F34) indicates No CVM (3F), but CVM List has ONLY PIN rules - ignoring CVM Result");
+                        } else {
+                            Log.e(TAG, "✓ CVM Result (9F34) indicates No CVM required (code: 3F) - skipping PIN entry");
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read CVM Result (9F34): " + e.getMessage());
+        }
+
+        // Check if PIN was already entered
+        boolean pinAlreadyEntered = (manualPinBlock != null && manualPinBlock.length > 0) ||
+                (currentPinType == 0 || currentPinType == 1);
+
+        // If PIN is required from CVM List but not entered, trigger PIN entry
+        // For Mastercard: Always prioritize CVM List - ignore CVM Result 3F
+        // For non-Mastercard: Respect CVM Result 3F only if CVM List has multiple rules
+        boolean shouldRespectCvmResult = false;
+        if (isMastercard) {
+            // Mastercard: Always prioritize CVM List, ignore CVM Result
+            shouldRespectCvmResult = false;
+        } else {
+            // Non-Mastercard: Respect CVM Result only if CVM List has multiple rules
+            shouldRespectCvmResult = cvmResultIndicatesNoCvm && !cvmListHasOnlyPinRules;
+        }
+
+        if (pinRequiredFromCvmList && !pinAlreadyEntered && !shouldRespectCvmResult) {
+            Log.e(TAG, "=== PIN REQUIRED FROM CVM LIST BUT NOT ENTERED ===");
+            Log.e(TAG, "CVM List indicates PIN required, but kernel didn't request it (DF8119=02)");
+            if (isMastercard) {
+                Log.e(TAG, "Mastercard: Prioritizing CVM List - triggering PIN entry despite CVM Result 3F");
+            } else if (cvmListHasOnlyPinRules) {
+                Log.e(TAG, "CVM List has ONLY PIN rules - triggering PIN entry despite CVM Result 3F");
+            }
+            Log.e(TAG, "Manually triggering PIN entry before online authorization...");
+            // Trigger PIN entry manually using -99 to mark as manual PIN
+            // This ensures handleOnlineProcess() is called after PIN is collected
+            handlePinEntry(-99, 60); // -99 = manual PIN (will be treated as online PIN type)
+            return; // Exit - PIN entry will call handleOnlineProcess() again after PIN is collected
+        } else if (pinRequiredFromCvmList && shouldRespectCvmResult) {
+            Log.e(TAG, "⚠️ CVM List indicates PIN, but CVM Result (9F34) indicates No CVM - respecting CVM Result");
+        }
+
         executor.execute(() -> {
             try {
                 // Build Field 55 (EMV data)
@@ -853,7 +1199,8 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                         null, // ksn
                         0, // pinType (online)
                         stan,
-                        field55Hex);
+                        field55Hex,
+                        currentTransactionType); // transactionType: "purchase" or "refund"
 
                 // Clear the manual PIN block after use
                 if (hasPinBlock) {
@@ -886,19 +1233,67 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
                     @Override
                     public void onError(Throwable error) {
                         Log.e(TAG, "Online processing failed: " + error.getMessage());
-                        mainHandler.post(() -> {
-                            // Unable to go online
-                            emvHandler.importOnlineProcStatus(2, new String[] {}, new String[] {});
-                        });
+                        
+                        // For refunds: only decline on timeout, otherwise treat as success
+                        boolean isTimeout = isTimeoutError(error);
+                        boolean isRefund = "refund".equals(currentTransactionType);
+                        boolean isVoid = "void".equals(currentTransactionType);
+                        
+                        if ((isRefund || isVoid) && !isTimeout) {
+                            // Refund/Void: non-timeout error → treat as success (offline approval)
+                            Log.e(TAG, "Refund: Non-timeout error, treating as success (offline approval)");
+                            mainHandler.post(() -> {
+                                // Import success status (0 = approved)
+                                emvHandler.importOnlineProcStatus(0, new String[] {}, new String[] {});
+                            });
+                        } else if (isTimeout) {
+                            // Timeout → decline (for both purchase and refund)
+                            Log.e(TAG, "Timeout error detected, declining transaction");
+                            mainHandler.post(() -> {
+                                // Import decline status (1 = declined)
+                                emvHandler.importOnlineProcStatus(1, new String[] {}, new String[] {});
+                            });
+                        } else {
+                            // Purchase: non-timeout error → offline processing
+                            Log.e(TAG, "Purchase: Non-timeout error, attempting offline processing");
+                            mainHandler.post(() -> {
+                                // Unable to go online
+                                emvHandler.importOnlineProcStatus(2, new String[] {}, new String[] {});
+                            });
+                        }
                     }
                 });
 
             } catch (Exception e) {
                 Log.e(TAG, "Online processing failed: " + e.getMessage());
-                mainHandler.post(() -> {
-                    // Unable to go online
-                    emvHandler.importOnlineProcStatus(2, new String[] {}, new String[] {});
-                });
+                
+                // For refunds/voids: only decline on timeout, otherwise treat as success
+                boolean isTimeout = isTimeoutError(e);
+                boolean isRefund = "refund".equals(currentTransactionType);
+                boolean isVoid = "void".equals(currentTransactionType);
+                
+                if ((isRefund || isVoid) && !isTimeout) {
+                    // Refund/Void: non-timeout error → treat as success (offline approval)
+                    Log.e(TAG, "Refund: Non-timeout error, treating as success (offline approval)");
+                    mainHandler.post(() -> {
+                        // Import success status (0 = approved)
+                        emvHandler.importOnlineProcStatus(0, new String[] {}, new String[] {});
+                    });
+                } else if (isTimeout) {
+                    // Timeout → decline (for both purchase and refund)
+                    Log.e(TAG, "Timeout error detected, declining transaction");
+                    mainHandler.post(() -> {
+                        // Import decline status (1 = declined)
+                        emvHandler.importOnlineProcStatus(1, new String[] {}, new String[] {});
+                    });
+                } else {
+                    // Purchase: non-timeout error → offline processing
+                    Log.e(TAG, "Purchase: Non-timeout error, attempting offline processing");
+                    mainHandler.post(() -> {
+                        // Unable to go online
+                        emvHandler.importOnlineProcStatus(2, new String[] {}, new String[] {});
+                    });
+                }
             }
         });
     }
@@ -947,9 +1342,153 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         }
 
         // Determine CVM method
+        // For signature detection: CVM List (8E) takes precedence (especially for
+        // Mastercard)
+        // because simulators may set CVM Result to 3F even when signature is in the
+        // list
+        // CVM Result 3F may mean "no PIN required" but signature could still be needed
+        // For PIN detection: CVM Result (9F34) takes precedence (handled in
+        // handleOnlineProcess)
         String cvmMethod = "NO_PIN";
-        if (signatureRequired) {
+
+        // Check CVM List (8E) FIRST for signature detection
+        // CVM List format: X Amount (8 bytes) + Y Amount (8 bytes) + CVM Rules (2 bytes
+        // each: CVM code + condition)
+        // CVM code 1E = "Signature (paper)" - used by Mastercard and other cards
+        // This takes precedence over CVM Result because signature is a terminal-level
+        // decision
+        // IMPORTANT: If PIN was entered, do NOT detect signature (PIN takes precedence)
+        boolean signatureCvmDetected = false;
+        boolean pinWasEntered = (currentPinType == 0 || currentPinType == 1);
+        if (pinWasEntered) {
+            Log.e(TAG, "⚠️ PIN was entered (type: " + currentPinType + ") - skipping signature detection");
+        }
+        try {
+            // Use stored CVM List if available, otherwise try to read it
+            if (cvmListHex == null || cvmListHex.isEmpty()) {
+                cvmListHex = emvHandler.readTlv("8E");
+            }
+            if (cvmListHex != null && !cvmListHex.isEmpty()) {
+                Log.e(TAG, "CVM List (8E): " + cvmListHex);
+                // Parse CVM List: skip X Amount (8 bytes) and Y Amount (8 bytes), then check
+                // rules IN ORDER
+                // Only detect signature if no PIN rule came before it that applies
+                if (cvmListHex.length() >= 16) {
+                    // Start parsing from byte 16 (after X and Y amounts)
+                    int i = 16;
+                    boolean pinRuleFoundBeforeSignature = false;
+                    while (i + 4 <= cvmListHex.length()) {
+                        String rule = cvmListHex.substring(i, i + 4);
+                        String cvmCode = rule.substring(0, 2).toUpperCase();
+                        String cvmCondition = rule.substring(2, 4).toUpperCase();
+
+                        Log.e(TAG,
+                                "CVM List rule: " + rule + " (code: " + cvmCode + ", condition: " + cvmCondition
+                                        + ")");
+
+                        int condition = Integer.parseInt(cvmCondition, 16);
+                        boolean conditionApplies = (condition == 0x00 || condition == 0x03);
+
+                        // Extract lower 6 bits for CVM method (ignore bit 7 which is "apply next if
+                        // fails")
+                        int cvmCodeInt = Integer.parseInt(cvmCode, 16);
+                        int cvmMethodCode = cvmCodeInt & 0x3F; // Lower 6 bits
+                        String cvmMethodHex = String.format("%02X", cvmMethodCode);
+
+                        // Check for PIN rules first (in order of appearance)
+                        // CVM method codes: 01, 02, 04, 05, or 42 (with bit 7 set)
+                        if (conditionApplies && ("01".equals(cvmMethodHex) || "02".equals(cvmMethodHex)
+                                || "04".equals(cvmMethodHex) || "05".equals(cvmMethodHex) || "42".equals(cvmCode))) {
+                            // PIN rule found before signature - signature should not be detected
+                            pinRuleFoundBeforeSignature = true;
+                            Log.e(TAG, "✓ PIN rule found in CVM List before signature - code: " + cvmCode
+                                    + " (method: " + cvmMethodHex + ")");
+                            // Don't break - continue to check if signature comes later (but it won't be
+                            // used)
+                        }
+
+                        // CVM code 1E = Signature (paper)
+                        if ("1E".equals(cvmCode) && conditionApplies) {
+                            if (pinWasEntered) {
+                                // PIN was entered, so signature should not be used
+                                Log.e(TAG, "⚠️ Signature rule (1E) found but PIN was entered - signature not used");
+                                break; // Stop checking - PIN takes precedence
+                            } else if (!pinRuleFoundBeforeSignature) {
+                                // No PIN rule found before this signature rule, so signature applies
+                                signatureCvmDetected = true;
+                                Log.e(TAG, "✓ Signature CVM detected from CVM List (8E) - code: 1E, condition: "
+                                        + cvmCondition);
+                                break; // Found signature, no need to check further rules
+                            } else {
+                                // PIN rule came before signature, so signature should not be used
+                                Log.e(TAG,
+                                        "⚠️ Signature rule (1E) found but PIN rule came before it - signature not used");
+                                break; // Stop checking - PIN takes precedence
+                            }
+                        }
+
+                        // CVM code 1F = No CVM required
+                        if ("1F".equals(cvmCode) && conditionApplies) {
+                            // If No CVM rule applies and no PIN/signature was found before it, use No CVM
+                            if (!pinRuleFoundBeforeSignature && !signatureCvmDetected) {
+                                Log.e(TAG, "✓ No CVM rule (1F) applies - no signature or PIN detected");
+                                break; // No CVM applies
+                            }
+                        }
+
+                        i += 4;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read CVM List (8E): " + e.getMessage());
+        }
+
+        // Also check CVM result code (9F34) for signature as fallback (if not found in
+        // CVM List and PIN was not entered)
+        if (!signatureCvmDetected && !pinWasEntered) {
+            try {
+                String cvmResultHex = emvHandler.readTlv("9F34");
+                if (cvmResultHex != null && !cvmResultHex.isEmpty()) {
+                    // CVM Result format: Byte1 (CVM Code) + Byte2 (Condition) + Byte3 (Result)
+                    // Extract first byte (CVM code)
+                    String cvmCode = null;
+                    if (cvmResultHex.length() >= 2) {
+                        // If it's a TLV format (9F34 + length + value), extract the value
+                        if (cvmResultHex.startsWith("9F34")) {
+                            // Format: 9F34 + length + value
+                            if (cvmResultHex.length() >= 6) {
+                                String lengthHex = cvmResultHex.substring(4, 6);
+                                int length = Integer.parseInt(lengthHex, 16);
+                                if (cvmResultHex.length() >= 6 + length * 2 && length >= 1) {
+                                    cvmCode = cvmResultHex.substring(6, 8).toUpperCase();
+                                }
+                            }
+                        } else {
+                            // Direct hex value, extract first byte
+                            cvmCode = cvmResultHex.substring(0, 2).toUpperCase();
+                        }
+
+                        if (cvmCode != null) {
+                            Log.e(TAG, "CVM Result code (9F34): " + cvmCode + " (full: " + cvmResultHex + ")");
+                            // CVM code 1E = Signature (paper)
+                            if ("1E".equals(cvmCode)) {
+                                signatureCvmDetected = true;
+                                Log.e(TAG, "✓ Signature CVM detected from CVM result code (1E)");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to read CVM Result (9F34): " + e.getMessage());
+            }
+        }
+
+        // Determine CVM method: signature takes priority
+        if (signatureRequired || signatureCvmDetected) {
             cvmMethod = "SIGNATURE";
+            Log.e(TAG, "CVM Method determined: SIGNATURE (signatureRequired=" + signatureRequired
+                    + ", signatureCvmDetected=" + signatureCvmDetected + ")");
         } else if (currentPinType == 0) {
             cvmMethod = "ONLINE_PIN";
         } else if (currentPinType == 1) {
@@ -1051,6 +1590,88 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         if (receiptPan == null || receiptPan.isEmpty()) {
             receiptPan = currentPan;
             Log.e(TAG, "⚠️ Using currentPan as fallback: " + (receiptPan != null ? maskPan(receiptPan) : "null"));
+        }
+        
+        // Validate PAN for void and refund transactions
+        // PAN is stored as MASKED in TransactionJournal (first 6 + "****" + last 4)
+        // Compare first 6 digits (BIN) and last 4 digits only
+        if (("void".equals(currentTransactionType) || "refund".equals(currentTransactionType)) && receiptPan != null && !receiptPan.isEmpty()) {
+            String originalPan = getIntent().getStringExtra("originalPan");
+            if (originalPan == null || originalPan.isEmpty()) {
+                // Try to get PAN from original transaction in TransactionJournal
+                String originalTransactionId = getIntent().getStringExtra("transactionId");
+                if (originalTransactionId != null && !originalTransactionId.isEmpty()) {
+                    com.neo.neopayplus.data.TransactionJournal.TransactionRecord originalTx = 
+                        com.neo.neopayplus.data.TransactionJournal.findTransactionById(originalTransactionId);
+                    if (originalTx != null && originalTx.pan != null && !originalTx.pan.isEmpty()) {
+                        originalPan = originalTx.pan;
+                    }
+                }
+            }
+            
+            if (originalPan != null && !originalPan.isEmpty()) {
+                // Extract digits only from both PANs
+                String currentPanDigits = receiptPan.replaceAll("[^0-9]", "");
+                String originalPanDigits = originalPan.replaceAll("[^0-9]", "");
+                
+                // Compare first 6 digits (BIN) and last 4 digits
+                // Original PAN is masked (format: "557607******9549"), so we extract first 6 and last 4
+                if (currentPanDigits.length() >= 10 && originalPanDigits.length() >= 10) {
+                    String currentFirst6 = currentPanDigits.substring(0, 6);
+                    String currentLast4 = currentPanDigits.substring(currentPanDigits.length() - 4);
+                    
+                    String originalFirst6 = originalPanDigits.substring(0, 6);
+                    String originalLast4 = originalPanDigits.substring(originalPanDigits.length() - 4);
+                    
+                    // Compare first 6 and last 4 digits
+                    if (!currentFirst6.equals(originalFirst6) || !currentLast4.equals(originalLast4)) {
+                        Log.e(TAG, "❌ PAN mismatch for " + currentTransactionType + " transaction");
+                        Log.e(TAG, "  Original PAN (masked): " + originalPan);
+                        Log.e(TAG, "  Current PAN: " + maskPan(receiptPan));
+                        Log.e(TAG, "  Original BIN: " + originalFirst6 + ", Last4: " + originalLast4);
+                        Log.e(TAG, "  Current BIN: " + currentFirst6 + ", Last4: " + currentLast4);
+                        // Decline the transaction
+                        handleTransactionFailed("Card number does not match original transaction", 12);
+                        return;
+                    } else {
+                        Log.e(TAG, "✓ PAN validated for " + currentTransactionType + " transaction");
+                        Log.e(TAG, "  BIN match: " + currentFirst6 + ", Last4 match: " + currentLast4);
+                    }
+                } else {
+                    Log.e(TAG, "⚠️ Cannot validate PAN - insufficient digits");
+                    Log.e(TAG, "  Current PAN length: " + currentPanDigits.length());
+                    Log.e(TAG, "  Original PAN length: " + originalPanDigits.length());
+                }
+            } else {
+                Log.e(TAG, "⚠️ Original PAN not available for validation");
+            }
+        }
+
+        // Extract cardholder name from EMV kernel (tag 5F20 - ASCII encoded)
+        String cardholderName = null;
+        try {
+            String cardholderNameHex = emvHandler.readTlv("5F20");
+            if (cardholderNameHex != null && !cardholderNameHex.isEmpty()) {
+                // Tag 5F20 is ASCII encoded, convert hex to ASCII string
+                try {
+                    byte[] nameBytes = ByteUtil.hexStr2Bytes(cardholderNameHex);
+                    if (nameBytes != null && nameBytes.length > 0) {
+                        // Convert bytes to ASCII string, trim trailing nulls/spaces
+                        cardholderName = new String(nameBytes, "ASCII").trim();
+                        // Remove any trailing null characters or padding
+                        cardholderName = cardholderName.replaceAll("\0+$", "").trim();
+                        if (!cardholderName.isEmpty()) {
+                            Log.e(TAG, "✓ Cardholder name (5F20) extracted: " + cardholderName);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "❌ Failed to convert cardholder name hex to ASCII: " + e.getMessage());
+                }
+            } else {
+                Log.e(TAG, "⚠️ Cardholder name (5F20) not found in EMV kernel");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to read cardholder name (5F20) from EMV kernel: " + e.getMessage());
         }
 
         // Extract expiry date from EMV kernel
@@ -1160,22 +1781,252 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         intent.putExtra("aid", selectedAid != null ? selectedAid : "");
         intent.putExtra("applicationPreferredName", applicationPreferredName != null ? applicationPreferredName : "");
         intent.putExtra("entryMode", entryMode);
-        intent.putExtra("transactionType", "SALE"); // TODO: Support REFUND/VOID
+        // Map transaction type: "purchase" -> "SALE", "refund" -> "REFUND", "void" -> "VOID"
+        String receiptTransactionType;
+        if ("refund".equals(currentTransactionType)) {
+            receiptTransactionType = "REFUND";
+        } else if ("void".equals(currentTransactionType)) {
+            receiptTransactionType = "VOID";
+        } else {
+            receiptTransactionType = "SALE";
+        }
+        intent.putExtra("transactionType", receiptTransactionType);
+        Log.e(TAG, "Transaction type: " + currentTransactionType + " -> Receipt type: " + receiptTransactionType);
         intent.putExtra("authCode", authCode != null ? authCode : "");
         intent.putExtra("tvr", tvr != null ? tvr : "");
         intent.putExtra("tsi", tsi != null ? tsi : "");
         intent.putExtra("maskedExpiryDate", maskedExpiryDate != null ? maskedExpiryDate : "");
+        intent.putExtra("cardholderName", cardholderName != null ? cardholderName : "");
 
         // Log what we're passing
         Log.e(TAG, "Passing to ResultActivity - amount: " + currentAmount + ", rrn: " + rrn + ", authCode: " + authCode
                 + ", aid: " + selectedAid + ", pan: " + (receiptPan != null ? maskPan(receiptPan) : "null") + ", tvr: "
-                + tvr + ", tsi: " + tsi);
+                + tvr + ", tsi: " + tsi + ", cardholderName: " + (cardholderName != null ? cardholderName : "null"));
         intent.putExtra("responseCode", "00");
         intent.putExtra("responseMessage", "APPROVED");
         intent.putExtra("stan", stan);
         intent.putExtra("cvmMethod", cvmMethod);
+
+        // Handle void: Don't create new transaction, just mark original as VOID
+        if ("void".equals(currentTransactionType)) {
+            String originalTransactionId = getIntent().getStringExtra("transactionId");
+            if (originalTransactionId != null && !originalTransactionId.isEmpty()) {
+                com.neo.neopayplus.data.TransactionJournal.TransactionRecord originalTx = 
+                    com.neo.neopayplus.data.TransactionJournal.findTransactionById(originalTransactionId);
+                
+                if (originalTx != null) {
+                    // Mark original transaction as VOID (no new transaction created)
+                    com.neo.neopayplus.data.TransactionJournal.updateTransactionStatus(originalTransactionId, "VOID");
+                    Log.e(TAG, "✓ Original transaction marked as VOID: " + originalTransactionId);
+                    
+                    // Use original transaction's batch and receipt numbers
+                    if (originalTx.batchNumber != null && !originalTx.batchNumber.isEmpty()) {
+                        intent.putExtra("batchNumber", originalTx.batchNumber);
+                        Log.e(TAG, "✓ Void using original batch number: " + originalTx.batchNumber);
+                    }
+                    if (originalTx.receiptNumber != null && !originalTx.receiptNumber.isEmpty()) {
+                        intent.putExtra("receiptNumber", originalTx.receiptNumber);
+                        Log.e(TAG, "✓ Void using original receipt number: " + originalTx.receiptNumber);
+                    }
+                    // Use original transaction ID for receipt
+                    intent.putExtra("transactionId", originalTransactionId);
+                }
+            }
+        } else {
+            // For refund and purchase: Create new transaction
+        // Save transaction to TransactionJournal for history and get transaction ID
+        String transactionId = saveTransactionToJournal(rrn, authCode, receiptPan, currentAmount, "00", true, cardholderName);
+            
+            // Get batch and receipt numbers from saved transaction
+            com.neo.neopayplus.data.TransactionJournal.TransactionRecord savedTx = 
+                com.neo.neopayplus.data.TransactionJournal.findTransactionById(transactionId);
+            
+            // Pass transaction ID, batch number, and receipt number to ResultActivity for receipt display
+            if (transactionId != null && !transactionId.isEmpty()) {
+                intent.putExtra("transactionId", transactionId);
+                Log.e(TAG, "✓ Transaction ID generated: " + transactionId);
+            }
+            if (savedTx != null) {
+                if (savedTx.batchNumber != null && !savedTx.batchNumber.isEmpty()) {
+                    intent.putExtra("batchNumber", savedTx.batchNumber);
+                    Log.e(TAG, "✓ Batch number: " + savedTx.batchNumber);
+                }
+                if (savedTx.receiptNumber != null && !savedTx.receiptNumber.isEmpty()) {
+                    intent.putExtra("receiptNumber", savedTx.receiptNumber);
+                    Log.e(TAG, "✓ Receipt number: " + savedTx.receiptNumber);
+                }
+            }
+            
+            // If this is a refund, use original transaction's batch number (but don't mark original as REFUNDED)
+            if ("refund".equals(currentTransactionType)) {
+                String originalTransactionId = getIntent().getStringExtra("transactionId");
+                if (originalTransactionId != null && !originalTransactionId.isEmpty()) {
+                    com.neo.neopayplus.data.TransactionJournal.TransactionRecord originalTx = 
+                        com.neo.neopayplus.data.TransactionJournal.findTransactionById(originalTransactionId);
+                    
+                    if (originalTx != null && savedTx != null) {
+                        // Update refund transaction to use original batch number
+                        if (originalTx.batchNumber != null) {
+                            savedTx.batchNumber = originalTx.batchNumber;
+                            // Re-save with correct batch number
+                            com.neo.neopayplus.data.TransactionJournal.saveTransaction(savedTx);
+                            intent.putExtra("batchNumber", originalTx.batchNumber);
+                            Log.e(TAG, "✓ Refund using original batch number: " + originalTx.batchNumber);
+                        }
+                        // Note: Original transaction remains as "APPROVED" - refund creates a new transaction
+                    }
+                }
+            }
+        }
+
         startActivity(intent);
         finish();
+    }
+
+    /**
+     * Check if error is a timeout error
+     */
+    private boolean isTimeoutError(Throwable error) {
+        if (error == null) {
+            return false;
+        }
+        
+        // Check for SocketTimeoutException
+        if (error instanceof SocketTimeoutException) {
+            return true;
+        }
+        
+        // Check for IOException with timeout-related messages
+        if (error instanceof IOException) {
+            String message = error.getMessage();
+            if (message != null) {
+                String lowerMessage = message.toLowerCase();
+                return lowerMessage.contains("timeout") || 
+                       lowerMessage.contains("timed out") ||
+                       lowerMessage.contains("host_unavailable") ||
+                       lowerMessage.contains("connection timeout") ||
+                       lowerMessage.contains("read timeout");
+            }
+        }
+        
+        // Check cause recursively
+        Throwable cause = error.getCause();
+        if (cause != null && cause != error) {
+            return isTimeoutError(cause);
+        }
+        
+        return false;
+    }
+
+    /**
+     * Save transaction to TransactionJournal for history screen
+     * @return The transaction ID (generated or existing)
+     */
+    private String saveTransactionToJournal(String rrn, String authCode, String pan, double amount,
+            String responseCode, boolean approved, String cardholderName) {
+        try {
+            // Determine entry mode from current card type
+            String entryMode = (currentCardType == AidlConstants.CardType.NFC.getValue()) ? "CONTACTLESS" : "IC";
+
+            // Detect card brand from AID
+            String cardBrand = null;
+            if (selectedAid != null && !selectedAid.isEmpty()) {
+                try {
+                    com.neo.neopayplus.emv.config.EmvBrandConfig.BrandProfile brandProfile = 
+                        com.neo.neopayplus.emv.config.EmvBrandConfig.INSTANCE.getBrandForAid(selectedAid);
+                    if (brandProfile != null) {
+                        // Access name property via getter (Kotlin data class property)
+                        cardBrand = brandProfile.getName().toUpperCase();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to detect card brand from AID: " + e.getMessage());
+                }
+            }
+
+            // Detect card type (DEBIT/CREDIT) from PAN
+            String cardType = "DEBIT"; // Default to DEBIT
+            if (pan != null && pan.length() >= 6) {
+                try {
+                    // Use CardTypeDetector (Kotlin object)
+                    cardType = com.neo.neopayplus.receipt.CardTypeDetector.INSTANCE.detectCardType(pan, cardBrand);
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to detect card type from PAN: " + e.getMessage());
+                }
+            }
+
+            com.neo.neopayplus.data.TransactionJournal.TransactionRecord record = new com.neo.neopayplus.data.TransactionJournal.TransactionRecord();
+
+            record.rrn = rrn;
+            record.authCode = authCode;
+            // Store PAN as masked (first 6 + "****" + last 4)
+            record.pan = pan != null ? maskPan(pan) : null;
+            record.cardholderName = cardholderName; // Store cardholder name for reprint
+            record.amount = String.valueOf((long) (amount * 100)); // Convert to minor units
+            record.currencyCode = "EGP";
+            // Map transaction type: "purchase" -> "00", "refund" -> "20", "void" -> "40" (ISO8583)
+            if ("refund".equals(currentTransactionType)) {
+                record.transactionType = "20";
+            } else if ("void".equals(currentTransactionType)) {
+                record.transactionType = "40";
+            } else {
+                record.transactionType = "00";
+            }
+            record.entryMode = entryMode; // Save entry mode for accurate reprints
+            record.aid = selectedAid; // Save AID for accurate reprints
+            record.cardBrand = cardBrand; // Save card brand for accurate reprints
+            record.cardType = cardType; // Save card type for accurate reprints
+            record.responseCode = responseCode;
+            record.status = approved ? "APPROVED" : "DECLINED";
+            record.isReversal = false;
+
+            // Format date/time (YYMMDD/HHMMSS)
+            java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("yyMMdd", java.util.Locale.US);
+            java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HHmmss", java.util.Locale.US);
+            java.util.Date now = new java.util.Date();
+            record.date = dateFormat.format(now);
+            record.time = timeFormat.format(now);
+
+            // Generate transaction ID with STAN (if available)
+            // Get STAN from ViewModel (already used in the transaction)
+            EmvPaymentViewModel.UiState currentState = viewModel.getUiStateLiveData().getValue();
+            int stanForId = currentState != null ? currentState.getStan() : currentStan;
+            // Generate transaction ID using the STAN that was used in this transaction
+            record.transactionId = com.neo.neopayplus.data.TransactionJournal.generateTransactionId(stanForId > 0 ? stanForId : null);
+            
+            // Verify transactionId was generated
+            if (record.transactionId == null || record.transactionId.isEmpty()) {
+                Log.e(TAG, "❌ ERROR: transactionId is null after generation! Generating fallback...");
+                record.transactionId = com.neo.neopayplus.data.TransactionJournal.generateTransactionId(null);
+            }
+            
+            Log.e(TAG, "✓ Generated transaction ID: " + record.transactionId + " (STAN=" + stanForId + ")");
+
+            String transactionId = com.neo.neopayplus.data.TransactionJournal.saveTransaction(record);
+            
+            // Verify the returned transactionId matches what we set
+            if (!record.transactionId.equals(transactionId)) {
+                Log.e(TAG, "⚠️ WARNING: Returned transactionId (" + transactionId + ") doesn't match record.transactionId (" + record.transactionId + ")");
+            }
+            
+            Log.e(TAG, "✓ Transaction saved to journal: ID=" + transactionId +
+                    ", Batch=" + record.batchNumber +
+                    ", Receipt=" + record.receiptNumber +
+                    ", type=" + record.transactionType +
+                    ", entryMode=" + entryMode + ", aid=" + record.aid + 
+                    ", cardBrand=" + record.cardBrand + ", cardType=" + record.cardType +
+                    ", rrn=" + rrn + ", amount=" + amount);
+            
+            // Store batch and receipt numbers for passing to ResultActivity
+            if (record.batchNumber != null) {
+                // Store in a way that can be retrieved later
+                // We'll pass it via intent extras
+            }
+            
+            return transactionId;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save transaction to journal: " + e.getMessage());
+            return null;
+        }
     }
 
     private void handleTransactionFailed(String desc, int code) {
@@ -1302,9 +2153,153 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         }
 
         // Determine CVM method
+        // For signature detection: CVM List (8E) takes precedence (especially for
+        // Mastercard)
+        // because simulators may set CVM Result to 3F even when signature is in the
+        // list
+        // CVM Result 3F may mean "no PIN required" but signature could still be needed
+        // For PIN detection: CVM Result (9F34) takes precedence (handled in
+        // handleOnlineProcess)
         String cvmMethod = "NO_PIN";
-        if (signatureRequired) {
+
+        // Check CVM List (8E) FIRST for signature detection
+        // CVM List format: X Amount (8 bytes) + Y Amount (8 bytes) + CVM Rules (2 bytes
+        // each: CVM code + condition)
+        // CVM code 1E = "Signature (paper)" - used by Mastercard and other cards
+        // This takes precedence over CVM Result because signature is a terminal-level
+        // decision
+        // IMPORTANT: If PIN was entered, do NOT detect signature (PIN takes precedence)
+        boolean signatureCvmDetected = false;
+        boolean pinWasEntered = (currentPinType == 0 || currentPinType == 1);
+        if (pinWasEntered) {
+            Log.e(TAG, "⚠️ PIN was entered (type: " + currentPinType + ") - skipping signature detection");
+        }
+        try {
+            // Use stored CVM List if available, otherwise try to read it
+            if (cvmListHex == null || cvmListHex.isEmpty()) {
+                cvmListHex = emvHandler.readTlv("8E");
+            }
+            if (cvmListHex != null && !cvmListHex.isEmpty()) {
+                Log.e(TAG, "CVM List (8E): " + cvmListHex);
+                // Parse CVM List: skip X Amount (8 bytes) and Y Amount (8 bytes), then check
+                // rules IN ORDER
+                // Only detect signature if no PIN rule came before it that applies
+                if (cvmListHex.length() >= 16) {
+                    // Start parsing from byte 16 (after X and Y amounts)
+                    int i = 16;
+                    boolean pinRuleFoundBeforeSignature = false;
+                    while (i + 4 <= cvmListHex.length()) {
+                        String rule = cvmListHex.substring(i, i + 4);
+                        String cvmCode = rule.substring(0, 2).toUpperCase();
+                        String cvmCondition = rule.substring(2, 4).toUpperCase();
+
+                        Log.e(TAG,
+                                "CVM List rule: " + rule + " (code: " + cvmCode + ", condition: " + cvmCondition
+                                        + ")");
+
+                        int condition = Integer.parseInt(cvmCondition, 16);
+                        boolean conditionApplies = (condition == 0x00 || condition == 0x03);
+
+                        // Extract lower 6 bits for CVM method (ignore bit 7 which is "apply next if
+                        // fails")
+                        int cvmCodeInt = Integer.parseInt(cvmCode, 16);
+                        int cvmMethodCode = cvmCodeInt & 0x3F; // Lower 6 bits
+                        String cvmMethodHex = String.format("%02X", cvmMethodCode);
+
+                        // Check for PIN rules first (in order of appearance)
+                        // CVM method codes: 01, 02, 04, 05, or 42 (with bit 7 set)
+                        if (conditionApplies && ("01".equals(cvmMethodHex) || "02".equals(cvmMethodHex)
+                                || "04".equals(cvmMethodHex) || "05".equals(cvmMethodHex) || "42".equals(cvmCode))) {
+                            // PIN rule found before signature - signature should not be detected
+                            pinRuleFoundBeforeSignature = true;
+                            Log.e(TAG, "✓ PIN rule found in CVM List before signature - code: " + cvmCode
+                                    + " (method: " + cvmMethodHex + ")");
+                            // Don't break - continue to check if signature comes later (but it won't be
+                            // used)
+                        }
+
+                        // CVM code 1E = Signature (paper)
+                        if ("1E".equals(cvmCode) && conditionApplies) {
+                            if (pinWasEntered) {
+                                // PIN was entered, so signature should not be used
+                                Log.e(TAG, "⚠️ Signature rule (1E) found but PIN was entered - signature not used");
+                                break; // Stop checking - PIN takes precedence
+                            } else if (!pinRuleFoundBeforeSignature) {
+                                // No PIN rule found before this signature rule, so signature applies
+                                signatureCvmDetected = true;
+                                Log.e(TAG, "✓ Signature CVM detected from CVM List (8E) - code: 1E, condition: "
+                                        + cvmCondition);
+                                break; // Found signature, no need to check further rules
+                            } else {
+                                // PIN rule came before signature, so signature should not be used
+                                Log.e(TAG,
+                                        "⚠️ Signature rule (1E) found but PIN rule came before it - signature not used");
+                                break; // Stop checking - PIN takes precedence
+                            }
+                        }
+
+                        // CVM code 1F = No CVM required
+                        if ("1F".equals(cvmCode) && conditionApplies) {
+                            // If No CVM rule applies and no PIN/signature was found before it, use No CVM
+                            if (!pinRuleFoundBeforeSignature && !signatureCvmDetected) {
+                                Log.e(TAG, "✓ No CVM rule (1F) applies - no signature or PIN detected");
+                                break; // No CVM applies
+                            }
+                        }
+
+                        i += 4;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read CVM List (8E): " + e.getMessage());
+        }
+
+        // Also check CVM result code (9F34) for signature as fallback (if not found in
+        // CVM List and PIN was not entered)
+        if (!signatureCvmDetected && !pinWasEntered) {
+            try {
+                String cvmResultHex = emvHandler.readTlv("9F34");
+                if (cvmResultHex != null && !cvmResultHex.isEmpty()) {
+                    // CVM Result format: Byte1 (CVM Code) + Byte2 (Condition) + Byte3 (Result)
+                    // Extract first byte (CVM code)
+                    String cvmCode = null;
+                    if (cvmResultHex.length() >= 2) {
+                        // If it's a TLV format (9F34 + length + value), extract the value
+                        if (cvmResultHex.startsWith("9F34")) {
+                            // Format: 9F34 + length + value
+                            if (cvmResultHex.length() >= 6) {
+                                String lengthHex = cvmResultHex.substring(4, 6);
+                                int length = Integer.parseInt(lengthHex, 16);
+                                if (cvmResultHex.length() >= 6 + length * 2 && length >= 1) {
+                                    cvmCode = cvmResultHex.substring(6, 8).toUpperCase();
+                                }
+                            }
+                        } else {
+                            // Direct hex value, extract first byte
+                            cvmCode = cvmResultHex.substring(0, 2).toUpperCase();
+                        }
+
+                        if (cvmCode != null) {
+                            Log.e(TAG, "CVM Result code (9F34): " + cvmCode + " (full: " + cvmResultHex + ")");
+                            // CVM code 1E = Signature (paper)
+                            if ("1E".equals(cvmCode)) {
+                                signatureCvmDetected = true;
+                                Log.e(TAG, "✓ Signature CVM detected from CVM result code (1E)");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to read CVM Result (9F34): " + e.getMessage());
+            }
+        }
+
+        // Determine CVM method: signature takes priority
+        if (signatureRequired || signatureCvmDetected) {
             cvmMethod = "SIGNATURE";
+            Log.e(TAG, "CVM Method determined: SIGNATURE (signatureRequired=" + signatureRequired
+                    + ", signatureCvmDetected=" + signatureCvmDetected + ")");
         } else if (currentPinType == 0) {
             cvmMethod = "ONLINE_PIN";
         } else if (currentPinType == 1) {
@@ -1327,13 +2322,92 @@ public class EMVPaymentActivity extends AppCompatActivity implements EMVCallback
         intent.putExtra("aid", selectedAid != null ? selectedAid : "");
         intent.putExtra("applicationPreferredName", applicationPreferredName != null ? applicationPreferredName : "");
         intent.putExtra("entryMode", entryMode);
-        intent.putExtra("transactionType", "SALE"); // TODO: Support REFUND/VOID
+        // Map transaction type: "purchase" -> "SALE", "refund" -> "REFUND", "void" -> "VOID"
+        String receiptTransactionType;
+        if ("refund".equals(currentTransactionType)) {
+            receiptTransactionType = "REFUND";
+        } else if ("void".equals(currentTransactionType)) {
+            receiptTransactionType = "VOID";
+        } else {
+            receiptTransactionType = "SALE";
+        }
+        intent.putExtra("transactionType", receiptTransactionType);
+        Log.e(TAG,
+                "Transaction type (failed): " + currentTransactionType + " -> Receipt type: " + receiptTransactionType);
         intent.putExtra("responseCode", String.valueOf(code));
         intent.putExtra("responseMessage", errorMsg);
         intent.putExtra("stan", stan);
         intent.putExtra("cvmMethod", cvmMethod);
+
+        // Handle void transactions: Don't create new transaction, just update original status if approved
+        if ("void".equals(currentTransactionType)) {
+            String originalTransactionId = getIntent().getStringExtra("transactionId");
+            if (originalTransactionId != null && !originalTransactionId.isEmpty()) {
+                com.neo.neopayplus.data.TransactionJournal.TransactionRecord originalTx = 
+                    com.neo.neopayplus.data.TransactionJournal.findTransactionById(originalTransactionId);
+                
+                if (originalTx != null) {
+                    // For declined void: Don't update the original sale transaction status
+                    // The original sale transaction remains "APPROVED" (void failed, so sale is still valid)
+                    // Don't create a new transaction record
+                    Log.e(TAG, "✓ Void declined - original sale transaction unchanged: " + originalTransactionId + " (status: " + originalTx.status + ")");
+                    
+                    // Use original transaction's batch and receipt numbers
+                    if (originalTx.batchNumber != null && !originalTx.batchNumber.isEmpty()) {
+                        intent.putExtra("batchNumber", originalTx.batchNumber);
+                    }
+                    if (originalTx.receiptNumber != null && !originalTx.receiptNumber.isEmpty()) {
+                        intent.putExtra("receiptNumber", originalTx.receiptNumber);
+                    }
+                    intent.putExtra("transactionId", originalTransactionId);
+                } else {
+                    Log.e(TAG, "⚠️ Original transaction not found for void decline: " + originalTransactionId);
+                }
+            } else {
+                Log.e(TAG, "⚠️ No original transaction ID found for void decline");
+            }
+        } else {
+            // For non-void declined transactions: Save to TransactionJournal for history
+            // Extract cardholder name for declined transactions too
+            String cardholderNameDeclined = null;
+            try {
+                String cardholderNameHex = emvHandler.readTlv("5F20");
+                if (cardholderNameHex != null && !cardholderNameHex.isEmpty()) {
+                    try {
+                        byte[] nameBytes = ByteUtil.hexStr2Bytes(cardholderNameHex);
+                        if (nameBytes != null && nameBytes.length > 0) {
+                            cardholderNameDeclined = new String(nameBytes, "ASCII").trim();
+                            cardholderNameDeclined = cardholderNameDeclined.replaceAll("\0+$", "").trim();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "❌ Failed to convert cardholder name hex to ASCII (declined): " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Failed to read cardholder name (5F20) from EMV kernel (declined): " + e.getMessage());
+            }
+            String transactionId = saveTransactionToJournal(rrn, null, currentPan, currentAmount, String.valueOf(code), false, cardholderNameDeclined);
+            
+            // Get batch and receipt numbers from saved transaction
+            com.neo.neopayplus.data.TransactionJournal.TransactionRecord savedTx = 
+                com.neo.neopayplus.data.TransactionJournal.findTransactionById(transactionId);
+            
+            // Pass transaction ID, batch number, and receipt number to ResultActivity for receipt display
+            if (transactionId != null && !transactionId.isEmpty()) {
+                intent.putExtra("transactionId", transactionId);
+                Log.e(TAG, "✓ Transaction ID generated (declined): " + transactionId);
+            }
+            if (savedTx != null) {
+                if (savedTx.batchNumber != null && !savedTx.batchNumber.isEmpty()) {
+                    intent.putExtra("batchNumber", savedTx.batchNumber);
+                }
+                if (savedTx.receiptNumber != null && !savedTx.receiptNumber.isEmpty()) {
+                    intent.putExtra("receiptNumber", savedTx.receiptNumber);
+                }
+            }
+        }
+
         intent.putExtra("orderId", (String) null); // TODO: Get from transaction
-        intent.putExtra("transactionId", (String) null); // TODO: Get from transaction
         intent.putExtra("batchNumber", (String) null); // TODO: Get from batch
         intent.putExtra("receiptNumber", (String) null); // TODO: Get from receipt counter
         // Check if this is a bank decline (from production API)

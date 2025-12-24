@@ -43,6 +43,27 @@ class ReceiptPrinterService(
     }
 
     /**
+     * Print settlement report
+     */
+    fun printSettlementReport(data: SettlementReceiptData, callback: PrintCallback? = null): Boolean {
+        if (sunmiPrinterService == null) {
+            Log.e(TAG, "Printer service not available")
+            callback?.onError("Printer service not available")
+            return false
+        }
+
+        return try {
+            val lines = SettlementReceiptBuilder.build(data)
+            printReceiptLines(lines, callback)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to print settlement report: ${e.message}", e)
+            callback?.onError(e.message ?: "Print failed")
+            false
+        }
+    }
+
+    /**
      * Print customer copy only (for approved transactions - user-initiated)
      */
     fun printCustomerCopy(data: ReceiptData, callback: PrintCallback? = null): Boolean {
@@ -57,6 +78,30 @@ class ReceiptPrinterService(
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to print customer copy: ${e.message}", e)
+            callback?.onError(e.message ?: "Print failed")
+            false
+        }
+    }
+
+    /**
+     * Print reprint of approved transaction receipt
+     */
+    fun printReprint(data: ReceiptData, callback: PrintCallback? = null): Boolean {
+        if (sunmiPrinterService == null) {
+            Log.e(TAG, "Printer service not available")
+            callback?.onError("Printer service not available")
+            return false
+        }
+
+        return try {
+            if (data.approved) {
+                printApprovedReceiptCopy(data, isMerchantCopy = false, isReprint = true, callback)
+            } else {
+                printDeclinedReceiptCopy(data, isMerchantCopy = false, isReprint = true, callback)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to print reprint: ${e.message}", e)
             callback?.onError(e.message ?: "Print failed")
             false
         }
@@ -89,14 +134,22 @@ class ReceiptPrinterService(
     }
 
     private fun printApprovedReceiptCopy(data: ReceiptData, isMerchantCopy: Boolean, callback: PrintCallback?) {
+        printApprovedReceiptCopy(data, isMerchantCopy, isReprint = false, callback)
+    }
+
+    private fun printApprovedReceiptCopy(data: ReceiptData, isMerchantCopy: Boolean, isReprint: Boolean, callback: PrintCallback?) {
         val builder = ApprovedReceiptBuilder(data)
-        val receiptLines = builder.build(isMerchantCopy)
+        val receiptLines = builder.build(isMerchantCopy, isReprint)
         printReceiptLines(receiptLines, callback)
     }
 
     private fun printDeclinedReceiptCopy(data: ReceiptData, callback: PrintCallback?) {
+        printDeclinedReceiptCopy(data, isMerchantCopy = false, isReprint = false, callback)
+    }
+
+    private fun printDeclinedReceiptCopy(data: ReceiptData, isMerchantCopy: Boolean, isReprint: Boolean, callback: PrintCallback?) {
         val builder = DeclinedReceiptBuilder(data)
-        val receiptLines = builder.build()
+        val receiptLines = builder.build(isMerchantCopy, isReprint)
         printReceiptLines(receiptLines, callback)
     }
     
@@ -143,6 +196,79 @@ class ReceiptPrinterService(
                             }
                         } else {
                             Log.w(TAG, "Failed to load bitmap from asset: ${line.assetPath}")
+                        }
+                    }
+                    is ReceiptLine.DualLogo -> {
+                        // Print two logos side by side - left logo aligned left, right logo aligned right
+                        // with space between them
+                        val leftBitmap = loadLogoFromAsset(line.leftLogoPath)
+                        val rightBitmap = loadLogoFromAsset(line.rightLogoPath)
+                        
+                        if (leftBitmap != null || rightBitmap != null) {
+                            try {
+                                // Make logos smaller - use 35% of receipt width each (leaves 30% for spacing)
+                                val logoWidth = (RECEIPT_WIDTH * 0.35f).toInt()
+                                val minSpacing = (RECEIPT_WIDTH * 0.15f).toInt() // Minimum spacing between logos
+                                
+                                // Process and resize left logo
+                                val leftProcessed = leftBitmap?.let {
+                                    val monochrome = convertToMonochrome(it)
+                                    resizeBitmap(monochrome, logoWidth)
+                                }
+                                
+                                // Process and resize right logo
+                                val rightProcessed = rightBitmap?.let {
+                                    val monochrome = convertToMonochrome(it)
+                                    resizeBitmap(monochrome, logoWidth)
+                                }
+                                
+                                // Determine combined height (max of both logos)
+                                val combinedHeight = maxOf(
+                                    leftProcessed?.height ?: 0,
+                                    rightProcessed?.height ?: 0
+                                )
+                                
+                                if (combinedHeight > 0) {
+                                    // Create combined bitmap with both logos side by side
+                                    val combinedBitmap = Bitmap.createBitmap(
+                                        RECEIPT_WIDTH,
+                                        combinedHeight,
+                                        Bitmap.Config.ARGB_8888
+                                    )
+                                    val canvas = android.graphics.Canvas(combinedBitmap)
+                                    
+                                    // Fill with white background
+                                    canvas.drawColor(android.graphics.Color.WHITE)
+                                    
+                                    // Draw left logo at left edge (x = 0)
+                                    leftProcessed?.let {
+                                        canvas.drawBitmap(it, 0f, 0f, null)
+                                    }
+                                    
+                                    // Draw right logo at right edge (x = RECEIPT_WIDTH - logo width)
+                                    // This ensures space between them since left logo is at 0 and right logo is at the end
+                                    rightProcessed?.let {
+                                        val rightX = (RECEIPT_WIDTH - it.width).toFloat()
+                                        canvas.drawBitmap(it, rightX, 0f, null)
+                                    }
+                                    
+                                    // Convert combined bitmap to monochrome
+                                    val finalBitmap = convertToMonochrome(combinedBitmap)
+                                    
+                                    // Print the combined bitmap (centered)
+                                    service.sendRAWData(byteArrayOf(0x1B, 0x61, 0x01), null) // Center align
+                                    service.printBitmap(finalBitmap, null)
+                                    Log.d(TAG, "Printed dual logos: left=${line.leftLogoPath}, right=${line.rightLogoPath}")
+                                }
+                            } catch (e: RemoteException) {
+                                Log.e(TAG, "Print dual logo error: ${e.message}", e)
+                                // Continue even if bitmap fails
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Print dual logo error: ${e.message}", e)
+                                // Continue even if bitmap fails
+                            }
+                        } else {
+                            Log.w(TAG, "Failed to load both logos from assets: ${line.leftLogoPath}, ${line.rightLogoPath}")
                         }
                     }
                     is ReceiptLine.Text -> {
@@ -413,6 +539,14 @@ sealed class ReceiptLine {
     data class Logo(
         val assetPath: String,
         val alignment: Alignment = Alignment.CENTER
+    ) : ReceiptLine()
+    
+    /**
+     * Dual logos on the same line - left logo aligned left, right logo aligned right
+     */
+    data class DualLogo(
+        val leftLogoPath: String,
+        val rightLogoPath: String
     ) : ReceiptLine()
     
     object SignatureLine : ReceiptLine()

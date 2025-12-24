@@ -96,6 +96,7 @@ object ReceiptDataMapper {
             cardType = cardType,
             maskedPan = maskedPan,
             maskedExpiryDate = maskedExpiryDate,
+            cardholderName = null, // Transaction domain model doesn't have cardholderName yet
             transactionType = receiptTransactionType,
             entryMode = receiptEntryMode,
             amount = transaction.amount,
@@ -149,7 +150,10 @@ object ReceiptDataMapper {
         isBankDecline: Boolean = false,
         tvr: String? = null,
         tsi: String? = null,
-        maskedExpiryDate: String? = null
+        maskedExpiryDate: String? = null,
+        cardholderName: String? = null,
+        date: String? = null,
+        time: String? = null
     ): ReceiptData {
         // Convert CVM method string to enum
         val cvm = when (cvmMethod.uppercase()) {
@@ -174,11 +178,15 @@ object ReceiptDataMapper {
             else -> com.neo.neopayplus.receipt.ReceiptTransactionType.SALE
         }
         
-        // Get date and time
-        val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-        val dateParts = dateTime.split(" ")
-        val date = dateParts[0]
-        val time = dateParts[1]
+        // Get date and time (use provided values or current time)
+        val receiptDate = date ?: run {
+            val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+            dateTime.split(" ")[0]
+        }
+        val receiptTime = time ?: run {
+            val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+            dateTime.split(" ")[1]
+        }
         
         // Mask PAN - always show first 6 digits (BIN), then mask, then last 4
         val maskedPan = cardPan?.let { pan ->
@@ -237,8 +245,8 @@ object ReceiptDataMapper {
             signatureBitmap = null, // TODO: Get signature bitmap if available
             batchNumber = batchNumber,
             receiptNumber = receiptNumber,
-            date = date,
-            time = time,
+            date = receiptDate,
+            time = receiptTime,
             merchantLogoAssetPath = "images/receipt_logo.webp",
             bankLogoAssetPath = "images/banque_misr_logo.png" // Bank logo from assets
         )

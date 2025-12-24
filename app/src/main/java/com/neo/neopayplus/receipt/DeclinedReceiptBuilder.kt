@@ -1,65 +1,53 @@
 package com.neo.neopayplus.receipt
 
+import java.math.BigDecimal
 import java.text.DecimalFormat
+import java.util.Locale
 
 /**
  * Builder for declined transaction receipts (SALE, REFUND, VOID)
- * Matches the structure of ApprovedReceiptBuilder but without bank logo and with DECLINED status
+ * Matches the structure of ApprovedReceiptBuilder with both logos for bank declines, DECLINED status
  */
 class DeclinedReceiptBuilder(private val data: ReceiptData) {
     
     private val amountFormatter = DecimalFormat("#,##0.00")
     
-    fun build(): List<ReceiptLine> {
+    fun build(isMerchantCopy: Boolean, isReprint: Boolean = false): List<ReceiptLine> {
         val lines = mutableListOf<ReceiptLine>()
         
-        // Header: Show bank logo if this is a bank decline, otherwise merchant logo only
-        if (data.isBankDecline && data.bankLogoAssetPath != null) {
-            // Bank decline: Show bank logo
-            lines.add(ReceiptLine.Logo(data.bankLogoAssetPath, Alignment.CENTER))
-        } else {
-            // Internal decline: Show merchant logo only
-            val merchantLogo = data.merchantLogoAssetPath ?: "images/receipt_logo.webp"
-            lines.add(ReceiptLine.Logo(merchantLogo, Alignment.CENTER))
-        }
+        // Header with logos - merchant logo (left) and bank logo (right) on same line
+        val merchantLogo = data.merchantLogoAssetPath ?: "images/receipt_logo.webp"
+        val bankLogo = data.bankLogoAssetPath ?: "images/banque_misr_logo.png"
+        lines.add(ReceiptLine.DualLogo(merchantLogo, bankLogo))
         lines.add(ReceiptLine.Empty)
         
+        // Merchant name
+        if (data.merchantName.isNotEmpty()) {
+            lines.add(ReceiptLine.Text(data.merchantName, Alignment.CENTER, FontSize.NORMAL, bold = true))
+            lines.add(ReceiptLine.Empty)
+        }
+        
+        lines.add(createLabelValueLine(data.internalTerminalId, data.bankTerminalId ?: "00000001"))
+
         // Order ID
-        lines.add(createLabelValueLine("Order ID", data.orderId ?: "ORD123456789"))
-
-        // Transaction ID
-        lines.add(createLabelValueLine("Transaction ID", data.transactionId ?: "TXN987654321"))
-        
-        // Terminal ID and Merchant ID: Show bank TID/MID for bank declines, internal for internal declines
-        if (data.isBankDecline && data.bankTerminalId != null && data.bankMerchantId != null) {
-            // Bank decline: Show bank Terminal ID and Merchant ID
-            lines.add(createLabelValueLine("Terminal ID", data.bankTerminalId))
-            lines.add(createLabelValueLine("Merchant ID", data.bankMerchantId))
-        } else {
-            // Internal decline: Show internal Terminal ID and Merchant ID
-            lines.add(createLabelValueLine("Terminal ID", data.internalTerminalId))
-            lines.add(createLabelValueLine("Merchant ID", data.internalMerchantId))
-        }
+        lines.add(createLabelValueLine(data.internalMerchantId, data.bankMerchantId ?: "00000001"))
+        // Bank Terminal ID and Bank Merchant ID
+        lines.add(createLabelValueLine(data.transactionId ?: "TXN987654321", data.orderId ?: "ORD123456789"))
 
         lines.add(ReceiptLine.Empty)
         
-        // Mastercard Requirement #2: Transaction type (middle title bold)
-        val transactionTypeText = when (data.transactionType) {
-            ReceiptTransactionType.SALE -> "SALE"
-            ReceiptTransactionType.REFUND -> "REFUND"
-            ReceiptTransactionType.VOID -> "VOID"
-        }
-        // Format brand with card type (e.g., "VISA DEBIT", "MASTERCARD CREDIT")
+        // Card brand with card type (e.g., "MASTERCARD DEBIT", "VISA CREDIT")
         val brandWithType = if (data.cardBrand != null && data.cardType != null) {
             "${data.cardBrand} ${data.cardType}"
         } else {
             data.cardBrand ?: ""
         }
-        val brandTypeText = "$brandWithType $transactionTypeText"
-        val panLine = data.maskedPan ?: "" // Use empty string if null, matching approved receipt format
-        lines.add(ReceiptLine.Text("$brandTypeText\n$panLine", Alignment.CENTER, FontSize.LARGE, bold = true))
-        lines.add(ReceiptLine.Empty)
-        
+        lines.add(ReceiptLine.Text(brandWithType.uppercase(), Alignment.CENTER, FontSize.LARGE, bold = true))
+
+        // PAN on separate line
+        val panLine = data.maskedPan ?: "" // Use empty string if null
+        lines.add(ReceiptLine.Text(panLine, Alignment.CENTER, FontSize.LARGE, bold = true))
+
         // Transaction type (contactless/IC) - middle title bold
         val entryModeText = when (data.entryMode) {
             ReceiptEntryMode.CONTACTLESS -> "CONTACTLESS"
@@ -67,24 +55,23 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
             ReceiptEntryMode.MAGNETIC -> "MAGNETIC STRIPE"
         }
         lines.add(ReceiptLine.Text(entryModeText, Alignment.CENTER, FontSize.NORMAL, bold = true))
-        lines.add(ReceiptLine.Empty)
-        
+
         // Batch number and Receipt
         lines.add(createLabelValueLine("BATCH:${data.batchNumber ?: "001"}", "RECEIPT:${data.receiptNumber ?: "000001"}"))
         
+
         // Mastercard Requirement #6: Transaction date
         lines.add(createLabelValueLine("DATE:${data.date}", "TIME:${data.time}"))
         
-        // RRN (always show, with placeholder if not available)
-        lines.add(createLabelValueLine("RRN", data.rrn ?: ""))
+
+        // RRN - truncate to 12 digits if longer
+        val rrnFormatted = data.rrn?.take(12) ?: "123456789012"
+        val authFormatted = data.authCode?.take(6) ?: "AUTH123"
+        lines.add(createLabelValueLine("RRN:$rrnFormatted","AUTH:$authFormatted"))
         
-        // Mastercard Requirement #8: For Chip Transaction - AID (always show, matching approved receipt)
-        lines.add(createLabelValueLine("AID", data.aid ?: ""))
-        
-        // Expiry date (masked for display)
-        if (data.maskedExpiryDate != null && data.maskedExpiryDate.isNotEmpty()) {
-            lines.add(createLabelValueLine("EXP", data.maskedExpiryDate))
-        }
+
+        // Mastercard Requirement #8: For Chip Transaction - AID
+        lines.add(createLabelValueLine("AID: ${data.aid ?: ""}", "EXP: ${data.maskedExpiryDate}"))
         
         // TVR (Terminal Verification Results) - tag 95
         if (data.tvr != null && data.tvr.isNotEmpty()) {
@@ -96,15 +83,18 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
             lines.add(createLabelValueLine("TSI", data.tsi))
         }
         
-        // Mastercard Requirement #5: Total Transaction amount and currency
+        // Mastercard Requirement #5: Total Transaction amount and currency (align left label => value => align right)
         val formattedAmount = amountFormatter.format(data.amount) + " ${data.currency}"
         lines.add(createLabelValueLine("Amount", formattedAmount))
-        lines.add(ReceiptLine.Empty)
-        
-        // Status (middle title bold) - DECLINED
-        lines.add(ReceiptLine.Text("DECLINED", Alignment.CENTER, FontSize.LARGE, bold = true))
-        lines.add(ReceiptLine.Empty)
-        
+
+        // Status and Transaction Type combined (e.g., "SALE DECLINED", "REFUND DECLINED")
+        val transactionTypeText = when (data.transactionType) {
+            ReceiptTransactionType.SALE -> "SALE"
+            ReceiptTransactionType.REFUND -> "REFUND"
+            ReceiptTransactionType.VOID -> "VOID"
+        }
+        lines.add(ReceiptLine.Text("$transactionTypeText DECLINED", Alignment.CENTER, FontSize.LARGE, bold = true))
+
         // Mastercard Requirement: Response or failure reason for unsuccessful transaction
         if (data.responseCode != null) {
             lines.add(ReceiptLine.Text("Response Code: ${data.responseCode}", Alignment.CENTER, FontSize.NORMAL))
@@ -112,9 +102,14 @@ class DeclinedReceiptBuilder(private val data: ReceiptData) {
         if (data.responseMessage != null) {
             lines.add(ReceiptLine.Text(data.responseMessage, Alignment.CENTER, FontSize.SMALL))
         }
-        
-        lines.add(ReceiptLine.Empty)
-        lines.add(ReceiptLine.Text("CUSTOMER COPY", Alignment.CENTER, FontSize.NORMAL, bold = true))
+
+        // Copy type (body middle) - "CUSTOMER COPY / MERCHANT COPY" or "REPRINT"
+        val copyType = if (isReprint) {
+            "REPRINT"
+        } else {
+            if (isMerchantCopy) "MERCHANT COPY" else "CUSTOMER COPY"
+        }
+        lines.add(ReceiptLine.Text(copyType, Alignment.CENTER, FontSize.NORMAL, bold = true))
         lines.add(ReceiptLine.Empty)
         
         return lines

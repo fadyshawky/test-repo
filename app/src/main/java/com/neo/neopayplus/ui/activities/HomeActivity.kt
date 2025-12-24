@@ -58,13 +58,13 @@ class HomeActivity : ComponentActivity() {
                         },
                         onRefund = {
                             launchAfterProvision {
-                                startActivity(Intent(this@HomeActivity, EMVPaymentActivity::class.java).apply {
-                                    putExtra("type", "refund")
-                                })
+                                startActivity(Intent(this@HomeActivity, RefundActivity::class.java))
                             }
                         },
                         onVoid = {
-                            startActivity(Intent(this@HomeActivity, ReversalActivity::class.java))
+                            launchAfterProvision {
+                                startActivity(Intent(this@HomeActivity, VoidActivity::class.java))
+                            }
                         },
                         onSettlement = {
                             startActivity(Intent(this@HomeActivity, SettlementActivity::class.java))

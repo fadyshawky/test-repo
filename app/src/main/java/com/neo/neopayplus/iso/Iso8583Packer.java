@@ -5,7 +5,9 @@ import com.neo.neopayplus.utils.LogUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -51,11 +53,21 @@ public class Iso8583Packer {
             buffer.append("30313030"); // ASCII "0100" in hex
 
             // Primary Bitmap (64 bits, binary)
-            // Set bits for fields present: 2, 3, 4, 11, 22, 49, 52 (PIN block), 55
+            // Set bits for fields present: 2 (PAN, only if present), 3, 4, 11, 22, 49, 52
+            // (PIN block), 55
             // Note: PIN block is encrypted under TPK, so we can only validate length (16
             // hex chars = 8 bytes)
             // Format validation (ISO 9564 Format 0/1) must be done after decryption by
             // backend
+            boolean includePan = (pan != null && !pan.isEmpty());
+            LogUtil.e(TAG, "  DE2 (PAN) check:");
+            LogUtil.e(TAG, "    PAN value: '" + (pan != null ? pan : "null") + "'");
+            LogUtil.e(TAG, "    PAN length: " + (pan != null ? pan.length() : 0));
+            LogUtil.e(TAG, "    includePan: " + includePan);
+            if (!includePan) {
+                LogUtil.e(TAG, "  DE2 (PAN): Empty - excluding from bitmap and message");
+                LogUtil.e(TAG, "    Note: PAN will be extracted from Field 55 (DE55) by backend");
+            }
             boolean includePinBlock = false;
             if (pinBlock != null && !pinBlock.isEmpty() && pinBlock.length() == 16) {
                 // PIN block is encrypted, so we can only check length
@@ -63,17 +75,32 @@ public class Iso8583Packer {
                 includePinBlock = true;
             }
 
-            int[] fields = { 2, 3, 4, 11, 22, 49, 55 };
+            // Build fields array based on what's actually present
+            List<Integer> fieldList = new ArrayList<>();
+            if (includePan) {
+                fieldList.add(2); // DE2: PAN (only if present)
+            }
+            fieldList.add(3); // DE3: Processing Code
+            fieldList.add(4); // DE4: Amount
+            fieldList.add(11); // DE11: STAN
+            fieldList.add(22); // DE22: POS Entry Mode
+            fieldList.add(49); // DE49: Currency Code
             if (includePinBlock) {
-                // Include DE52 (PIN block) if provided and has correct length (8 bytes = 16 hex
-                // chars)
-                fields = new int[] { 2, 3, 4, 11, 22, 49, 52, 55 };
+                fieldList.add(52); // DE52: PIN Block (only if present)
+            }
+            fieldList.add(55); // DE55: ICC Data (Field 55)
+
+            LogUtil.e(TAG, "  Fields to include in bitmap: " + fieldList.toString());
+            int[] fields = new int[fieldList.size()];
+            for (int i = 0; i < fieldList.size(); i++) {
+                fields[i] = fieldList.get(i);
             }
             String bitmap = buildBitmap(fields);
+            LogUtil.e(TAG, "  Built bitmap (hex): " + bitmap);
             buffer.append(bitmap);
 
-            // DE2: PAN (Primary Account Number)
-            if (pan != null && !pan.isEmpty()) {
+            // DE2: PAN (Primary Account Number) - only append if present
+            if (includePan) {
                 buffer.append(formatPan(pan));
             }
 
@@ -88,8 +115,22 @@ public class Iso8583Packer {
             // DE4: Amount, Authorized (12 digits, right-justified, zero-filled)
             // Per MsgSpec v341, numeric fields are ASCII encoded
             if (amount != null && !amount.isEmpty()) {
-                buffer.append(asciiToHex(zeroPadNumeric(amount, 12)));
+                String paddedAmount = zeroPadNumeric(amount, 12);
+                LogUtil.e(TAG, "  DE4 (Amount):");
+                LogUtil.e(TAG, "    Input amount string: '" + amount + "'");
+                LogUtil.e(TAG, "    Padded to 12 digits: '" + paddedAmount + "'");
+                LogUtil.e(TAG, "    Amount in minor units: " + paddedAmount);
+                // Verify: if amount is "20000" (200.00 EGP), padded should be "000000020000"
+                try {
+                    long amountLong = Long.parseLong(paddedAmount);
+                    double amountMainUnit = amountLong / 100.0;
+                    LogUtil.e(TAG, "    Amount in main unit: " + amountMainUnit + " EGP");
+                } catch (NumberFormatException e) {
+                    LogUtil.e(TAG, "    ⚠️ Failed to parse amount: " + e.getMessage());
+                }
+                buffer.append(asciiToHex(paddedAmount));
             } else {
+                LogUtil.e(TAG, "  DE4 (Amount): Empty - using default zeros");
                 buffer.append(asciiToHex("000000000000")); // Default: 12 ASCII zeros
             }
 

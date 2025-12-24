@@ -14,6 +14,7 @@ public interface SettlementApiService {
      * Settlement Transaction Data
      */
     class SettlementTransaction {
+        public String transactionId;     // Transaction ID (e.g., "TXN25011500123456")
         public String rrn;               // Retrieval Reference Number (unique transaction ID)
         public String authCode;          // Authorization code
         public String pan;               // Primary Account Number (masked)
@@ -42,6 +43,7 @@ public interface SettlementApiService {
      */
     class BatchUploadRequest {
         public String terminalId;                // Terminal ID
+        public String batchNumber;               // Batch number (YYMMDD + sequence, e.g., "250115001")
         public String batchDate;                  // Batch date (YYYYMMDD)
         public String batchTime;                  // Batch time (HHMMSS)
         public List<SettlementTransaction> transactions;  // List of transactions to upload
@@ -57,16 +59,83 @@ public interface SettlementApiService {
     }
     
     /**
+     * Brand-specific totals (calculated by backend)
+     */
+    class BrandTotalsData {
+        public BrandTransactionTotals sales;
+        public BrandTransactionTotals voids;
+        public BrandTransactionTotals refunds;
+        public String total; // Total for this brand (sales - refunds) - calculated by backend
+    }
+    
+    class BrandTransactionTotals {
+        public int count;
+        public String total;
+    }
+    
+    /**
+     * Settlement Totals (calculated by backend)
+     */
+    class SettlementTotals {
+        // Sales
+        public int countSales;                    // Number of sales transactions
+        public String totalSales;                 // Total sales amount
+        
+        // Refunds
+        public int countRefund;                   // Number of refund transactions
+        public String totalRefund;                // Total refund amount
+        
+        // Voids
+        public int countVoid;                    // Number of void transactions
+        public String totalVoid;                  // Total void amount
+        
+        // Declined
+        public int countDeclined;                 // Number of declined transactions
+        public String totalDeclined;              // Total declined amount
+        
+        // Summary
+        public String grandTotal;                 // Grand total (sales - refunds)
+        public String currency;                   // Currency code (e.g., "EGP")
+        
+        // Brand-specific totals (calculated by backend)
+        public BrandTotalsData visa;              // VISA brand totals
+        public BrandTotalsData mastercard;        // MASTERCARD brand totals
+        public BrandTotalsData meeza;             // MEEZA brand totals
+        
+        @Override
+        public String toString() {
+            return "SettlementTotals{" +
+                    "countSales=" + countSales +
+                    ", totalSales='" + totalSales + '\'' +
+                    ", countRefund=" + countRefund +
+                    ", totalRefund='" + totalRefund + '\'' +
+                    ", countVoid=" + countVoid +
+                    ", totalVoid='" + totalVoid + '\'' +
+                    ", countDeclined=" + countDeclined +
+                    ", totalDeclined='" + totalDeclined + '\'' +
+                    ", grandTotal='" + grandTotal + '\'' +
+                    ", currency='" + currency + '\'' +
+                    '}';
+        }
+    }
+    
+    /**
      * Batch Upload Response
      */
     class BatchUploadResponse {
         public boolean success;                   // true if batch upload succeeded
         public String batchId;                   // Unique batch ID assigned by backend
+        public String batchNumber;               // Batch number (same as batchId)
+        public String batchDate;                 // Batch date (YYYYMMDD)
+        public String batchTime;                  // Batch time (HHMMSS)
+        public String terminalId;                // Terminal ID
         public int totalCount;                    // Total number of transactions in batch
         public int acceptedCount;                 // Number of accepted transactions
         public int rejectedCount;                 // Number of rejected transactions
         public List<String> acceptedRrns;         // List of accepted RRNs
         public List<String> rejectedRrns;        // List of rejected RRNs
+        public SettlementTotals totals;           // Settlement totals (sales, refunds, voids, grand total)
+        public List<SettlementTransaction> transactions; // Settled transaction details
         public String message;                    // Response message
         public Throwable error;                   // Error if upload failed
         
@@ -76,11 +145,14 @@ public interface SettlementApiService {
             BatchUploadResponse response = new BatchUploadResponse();
             response.success = true;
             response.batchId = batchId;
+            response.batchNumber = batchId;
             response.totalCount = totalCount;
             response.acceptedCount = acceptedCount;
             response.rejectedCount = rejectedCount;
             response.acceptedRrns = acceptedRrns;
             response.rejectedRrns = rejectedRrns;
+            response.totals = new SettlementTotals(); // Initialize empty totals
+            response.transactions = new java.util.ArrayList<>(); // Initialize empty transactions list
             response.message = "Batch upload completed successfully";
             return response;
         }
@@ -100,9 +172,11 @@ public interface SettlementApiService {
             return "BatchUploadResponse{" +
                     "success=" + success +
                     ", batchId='" + batchId + '\'' +
+                    ", batchNumber='" + batchNumber + '\'' +
                     ", totalCount=" + totalCount +
                     ", acceptedCount=" + acceptedCount +
                     ", rejectedCount=" + rejectedCount +
+                    ", totals=" + (totals != null ? totals.toString() : "null") +
                     ", message='" + message + '\'' +
                     '}';
         }

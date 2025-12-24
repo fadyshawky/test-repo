@@ -55,6 +55,7 @@ public class EMVHandler {
     private int currentCardType = 0;
     private String currentPan = null;
     private int currentPinType = 0;
+    private String currentTransactionType = "00"; // "00" = Purchase, "20" = Refund (ISO8583)
 
     // Guard to prevent double EMV process start (findRFCard can be called multiple
     // times)
@@ -99,15 +100,20 @@ public class EMVHandler {
     /**
      * Start card detection
      * 
-     * @param amount         Transaction amount in minor units (e.g., "1000" for
-     *                       10.00)
-     * @param timeoutSeconds Timeout for card detection
+     * @param amount          Transaction amount in minor units (e.g., "1000" for
+     *                        10.00)
+     * @param timeoutSeconds  Timeout for card detection
+     * @param transactionType Transaction type: "purchase" or "refund" (defaults to
+     *                        "purchase")
      */
-    public void startCardDetection(String amount, int timeoutSeconds) {
+    public void startCardDetection(String amount, int timeoutSeconds, String transactionType) {
         this.currentAmount = amount;
         this.emvProcessStarted = false; // Reset guard for new transaction
+        // Map transaction type: "purchase" -> "00", "refund" -> "20" (ISO8583)
+        this.currentTransactionType = "refund".equals(transactionType) ? "20" : "00";
         Log.e(TAG, "=== Starting Card Detection ===");
         Log.e(TAG, "Amount: " + amount);
+        Log.e(TAG, "Transaction Type: " + transactionType + " -> ISO8583: " + this.currentTransactionType);
         Log.e(TAG, "Timeout: " + timeoutSeconds + " seconds");
 
         // Check if SDK services are available
@@ -139,6 +145,17 @@ public class EMVHandler {
             e.printStackTrace();
             onResultCallBack(EMVSteps.CARD_ERROR, e.getMessage());
         }
+    }
+
+    /**
+     * Start card detection (backward compatibility - defaults to purchase)
+     * 
+     * @param amount         Transaction amount in minor units (e.g., "1000" for
+     *                       10.00)
+     * @param timeoutSeconds Timeout for card detection
+     */
+    public void startCardDetection(String amount, int timeoutSeconds) {
+        startCardDetection(amount, timeoutSeconds, "purchase");
     }
 
     /**
@@ -176,7 +193,11 @@ public class EMVHandler {
             // Build transaction bundle
             Bundle bundle = new Bundle();
             bundle.putString("amount", currentAmount);
-            bundle.putString("transType", "00"); // Purchase
+            // Transaction type: "00" = Purchase, "20" = Refund (ISO8583)
+            // SAM (Secure Application Module) uses this for cryptographic operations
+            bundle.putString("transType", currentTransactionType);
+            Log.e(TAG, "EMV Bundle - Transaction Type: " + currentTransactionType +
+                    (currentTransactionType.equals("20") ? " (Refund)" : " (Purchase)"));
 
             // Determine flow type based on card type
             // IMPORTANT: Always use NFC Speedup for contactless cards
@@ -1118,8 +1139,9 @@ public class EMVHandler {
         try {
             // Re-initialize EMV process
             emvOptV2.initEmvProcess();
-            // Start card detection again
-            startCardDetection(currentAmount, 60);
+            // Start card detection again (preserve transaction type)
+            startCardDetection(currentAmount, 60,
+                    "20".equals(currentTransactionType) ? "refund" : "purchase");
         } catch (Exception e) {
             Log.e(TAG, "restartTransaction failed: " + e.getMessage());
             onResultCallBack(EMVSteps.CARD_ERROR, "Failed to restart transaction: " + e.getMessage());

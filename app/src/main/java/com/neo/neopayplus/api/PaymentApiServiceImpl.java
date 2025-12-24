@@ -291,8 +291,36 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 String pan = request.pan != null ? request.pan : "";
                 LogUtil.e(TAG, "✓ PAN for ISO 8583 (full, unmasked, as extracted from EMV): " + pan);
                 LogUtil.e(TAG, "✓ PAN length: " + (pan != null ? pan.length() : 0) + " characters");
-                String processingCode = "000000"; // Purchase
+                // Processing Code: "000000" = Purchase, "200000" = Refund (ISO8583 DE3)
+                String processingCode = "20".equals(request.transactionType) ? "200000" : "000000";
+                LogUtil.e(TAG,
+                        "Transaction type: " + request.transactionType + " -> Processing Code: " + processingCode);
                 String amount = request.amount;
+
+                // Validate and log amount before sending
+                LogUtil.e(TAG, "=== Amount Validation (DE4) ===");
+                LogUtil.e(TAG, "  Raw amount string from request: '" + amount + "'");
+                if (amount != null && !amount.isEmpty()) {
+                    try {
+                        // Remove any non-digit characters and verify length
+                        String amountDigits = amount.replaceAll("\\D", "");
+                        if (amountDigits.length() > 12) {
+                            LogUtil.e(TAG, "  ⚠️ Amount exceeds 12 digits, truncating rightmost 12 digits");
+                            amountDigits = amountDigits.substring(amountDigits.length() - 12);
+                        }
+                        long amountMinor = Long.parseLong(amountDigits);
+                        double amountMainUnit = amountMinor / 100.0;
+                        LogUtil.e(TAG, "  Amount in minor units: " + amountMinor);
+                        LogUtil.e(TAG, "  Amount in main unit: " + amountMainUnit + " EGP");
+                        LogUtil.e(TAG,
+                                "  Amount will be padded to: '" + String.format(Locale.US, "%012d", amountMinor) + "'");
+                    } catch (NumberFormatException e) {
+                        LogUtil.e(TAG, "  ⚠️ Failed to parse amount: " + e.getMessage());
+                    }
+                } else {
+                    LogUtil.e(TAG, "  ⚠️ Amount is null or empty");
+                }
+
                 String stan = generateStan(request.date, request.time);
                 String posEntryMode = determinePosEntryMode(request);
                 String currencyCode = request.currencyCode != null ? request.currencyCode
@@ -723,8 +751,11 @@ public class PaymentApiServiceImpl implements PaymentApiService {
             isoFields.addProperty("2", panMasked);
         }
 
-        // DE3: Processing Code (000000 = Purchase)
-        isoFields.addProperty("3", "000000");
+        // DE3: Processing Code ("000000" = Purchase, "200000" = Refund)
+        String processingCode = "20".equals(request.transactionType) ? "200000" : "000000";
+        isoFields.addProperty("3", processingCode);
+        LogUtil.e(TAG,
+                "DE3 Processing Code: " + processingCode + " (transaction type: " + request.transactionType + ")");
 
         // DE4: Amount, Authorized (in minor currency units)
         if (request.amount != null && !request.amount.isEmpty()) {
@@ -1762,6 +1793,7 @@ public class PaymentApiServiceImpl implements PaymentApiService {
     private void callProductionReversalApi(ReversalRequest request, ReversalCallback callback) {
         LogUtil.e(TAG, "=== PRODUCTION API: Reversal Request ===");
         LogUtil.e(TAG, "  Terminal ID: " + request.terminalId);
+        LogUtil.e(TAG, "  Transaction ID: " + request.transactionId);
         LogUtil.e(TAG, "  RRN: " + request.rrn);
         LogUtil.e(TAG, "  Amount: " + request.amount);
         LogUtil.e(TAG, "  Reason: " + request.reversalReason);
@@ -1833,7 +1865,23 @@ public class PaymentApiServiceImpl implements PaymentApiService {
         JsonObject json = new JsonObject();
         json.addProperty("terminal_id", request.terminalId);
         json.addProperty("merchant_id", request.merchantId);
-        json.addProperty("rrn", request.rrn);
+        // Use transaction_id instead of rrn
+        if (request.transactionId != null && !request.transactionId.isEmpty()) {
+            json.addProperty("transaction_id", request.transactionId);
+            LogUtil.e(TAG, "✓ Using transaction_id for reversal: " + request.transactionId);
+
+            // Validate that transaction is settled before allowing refund
+            com.neo.neopayplus.data.TransactionJournal.TransactionRecord tx = com.neo.neopayplus.data.TransactionJournal
+                    .findTransactionById(request.transactionId);
+            if (tx != null && !tx.isSettled) {
+                LogUtil.e(TAG, "❌ Refund rejected: Transaction not settled. Transaction ID: " + request.transactionId);
+                // Note: Server should also validate this, but we check here for better UX
+            }
+        } else if (request.rrn != null && !request.rrn.isEmpty()) {
+            // Fallback to RRN for backward compatibility
+            json.addProperty("rrn", request.rrn);
+            LogUtil.e(TAG, "⚠️ Using RRN for reversal (transaction_id not provided): " + request.rrn);
+        }
         json.addProperty("amount", request.amount);
         json.addProperty("currency", request.currencyCode != null ? request.currencyCode : "818");
         json.addProperty("reversal_reason", request.reversalReason != null ? request.reversalReason : "USER_REQUEST");
@@ -1914,8 +1962,9 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 }
             }
 
-            // Mock: Approve reversal if RRN exists
-            boolean shouldApprove = request.rrn != null && !request.rrn.isEmpty();
+            // Mock: Approve reversal if transaction ID or RRN exists
+            boolean shouldApprove = (request.transactionId != null && !request.transactionId.isEmpty()) ||
+                    (request.rrn != null && !request.rrn.isEmpty());
             ReversalResponse response = shouldApprove ? ReversalResponse.success("00", "REVERSAL_APPROVED")
                     : ReversalResponse.declined("94", "NO_MATCH");
 

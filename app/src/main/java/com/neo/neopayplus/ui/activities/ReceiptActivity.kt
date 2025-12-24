@@ -57,8 +57,16 @@ class ReceiptActivity : ComponentActivity() {
         val tvr = intent.getStringExtra("tvr")
         val tsi = intent.getStringExtra("tsi")
         val maskedExpiryDate = intent.getStringExtra("maskedExpiryDate")
+        val cardholderName = intent.getStringExtra("cardholderName")
+        val isReprint = intent.getBooleanExtra("isReprint", false)
+        val date = intent.getStringExtra("date")
+        val time = intent.getStringExtra("time")
         
         // Build ReceiptData using ReceiptDataMapper (centralized mapping logic)
+        // Use date/time from intent if available (for reprints from history), otherwise use current time
+        val receiptDate = date ?: java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val receiptTime = time ?: java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        
         val receiptData = ReceiptDataMapper.fromIntentExtras(
             approved = approved,
             rrn = rrn,
@@ -83,7 +91,10 @@ class ReceiptActivity : ComponentActivity() {
             isBankDecline = isBankDecline,
             tvr = tvr,
             tsi = tsi,
-            maskedExpiryDate = maskedExpiryDate
+            maskedExpiryDate = maskedExpiryDate,
+            cardholderName = cardholderName,
+            date = receiptDate,
+            time = receiptTime
         )
         
         setContent {
@@ -92,9 +103,9 @@ class ReceiptActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Background
                 ) {
-                    // Auto-print merchant copy for approved transactions when screen loads
-                    LaunchedEffect(approved) {
-                        if (approved) {
+                    // Auto-print merchant copy for approved transactions when screen loads (skip for reprints)
+                    LaunchedEffect(approved, isReprint) {
+                        if (approved && !isReprint) {
                             android.util.Log.d("ReceiptActivity", "Auto-printing merchant copy...")
                             receiptPrinterService.printMerchantCopy(
                                 receiptData,
@@ -113,32 +124,48 @@ class ReceiptActivity : ComponentActivity() {
                     ReceiptScreen(
                         receiptData = receiptData,
                         approved = approved,
+                        isReprint = isReprint,
                         onPrintCustomerCopy = {
-                            android.util.Log.d("ReceiptActivity", "Printing customer copy...")
-                            if (approved) {
-                                receiptPrinterService.printCustomerCopy(
+                            if (isReprint) {
+                                android.util.Log.d("ReceiptActivity", "Printing reprint...")
+                                receiptPrinterService.printReprint(
                                     receiptData,
                                     object : ReceiptPrinterService.PrintCallback {
                                         override fun onSuccess() {
-                                            android.util.Log.d("ReceiptActivity", "✓ Customer copy printed successfully")
+                                            android.util.Log.d("ReceiptActivity", "✓ Reprint printed successfully")
                                         }
                                         override fun onError(message: String) {
-                                            android.util.Log.e("ReceiptActivity", "✗ Customer copy print error: $message")
+                                            android.util.Log.e("ReceiptActivity", "✗ Reprint print error: $message")
                                         }
                                     }
                                 )
                             } else {
-                                receiptPrinterService.printDeclinedReceipt(
-                                    receiptData,
-                                    object : ReceiptPrinterService.PrintCallback {
-                                        override fun onSuccess() {
-                                            android.util.Log.d("ReceiptActivity", "✓ Receipt printed successfully")
+                                android.util.Log.d("ReceiptActivity", "Printing customer copy...")
+                                if (approved) {
+                                    receiptPrinterService.printCustomerCopy(
+                                        receiptData,
+                                        object : ReceiptPrinterService.PrintCallback {
+                                            override fun onSuccess() {
+                                                android.util.Log.d("ReceiptActivity", "✓ Customer copy printed successfully")
+                                            }
+                                            override fun onError(message: String) {
+                                                android.util.Log.e("ReceiptActivity", "✗ Customer copy print error: $message")
+                                            }
                                         }
-                                        override fun onError(message: String) {
-                                            android.util.Log.e("ReceiptActivity", "✗ Print error: $message")
+                                    )
+                                } else {
+                                    receiptPrinterService.printDeclinedReceipt(
+                                        receiptData,
+                                        object : ReceiptPrinterService.PrintCallback {
+                                            override fun onSuccess() {
+                                                android.util.Log.d("ReceiptActivity", "✓ Receipt printed successfully")
+                                            }
+                                            override fun onError(message: String) {
+                                                android.util.Log.e("ReceiptActivity", "✗ Print error: $message")
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         },
                         onCancelCustomerCopy = {
