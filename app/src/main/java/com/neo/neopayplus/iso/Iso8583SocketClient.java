@@ -101,93 +101,54 @@ public class Iso8583SocketClient {
         outputStream.flush();
         LogUtil.e(TAG, "✓ Message sent");
 
-        // Read response
-        // First, read header to determine message length
-        // For ISO 8583, we need to read the TPDU header (5 bytes) first
-        // Then read the application data length
-        // For simplicity, we'll read in chunks until we have a complete message
-
-        byte[] header = new byte[7]; // ADR (1) + CB (1) + TPDU (5)
-        int headerBytesRead = 0;
+        // Read response with PowerCARD protocol structure
+        // First, read message length prefix (4 bytes ASCII)
+        byte[] lengthPrefix = new byte[4];
+        int lengthPrefixBytesRead = 0;
         long startTime = System.currentTimeMillis();
 
-        while (headerBytesRead < header.length) {
+        while (lengthPrefixBytesRead < lengthPrefix.length) {
             if (System.currentTimeMillis() - startTime > timeoutMs) {
-                throw new SocketTimeoutException("Timeout reading response header");
+                throw new SocketTimeoutException("Timeout reading length prefix");
             }
 
-            int bytesRead = inputStream.read(header, headerBytesRead, header.length - headerBytesRead);
+            int bytesRead = inputStream.read(lengthPrefix, lengthPrefixBytesRead, lengthPrefix.length - lengthPrefixBytesRead);
             if (bytesRead == -1) {
                 throw new IOException("Connection closed by server");
             }
-            headerBytesRead += bytesRead;
+            lengthPrefixBytesRead += bytesRead;
         }
 
-        LogUtil.e(TAG, "✓ Response header received: " + bytesToHex(header));
+        // Parse message length
+        String lengthStr = new String(lengthPrefix);
+        int messageLength = Integer.parseInt(lengthStr);
+        LogUtil.e(TAG, "✓ Response length prefix received: " + lengthStr + " (" + messageLength + " bytes)");
 
-        // Parse TPDU to get application data length
-        // TPDU is at bytes 2-6 (index 2-6)
-        // For now, we'll read the application data
-        // The application data starts with MTI (4 bytes) + Bitmap (8 bytes) + Data
-        // Elements
+        // Read the complete message based on length
+        byte[] responseMessage = new byte[messageLength];
+        int messageBytesRead = 0;
 
-        // Read MTI (4 bytes) and Bitmap (8 bytes) to determine data length
-        byte[] mtiAndBitmap = new byte[12];
-        int mtiBytesRead = 0;
-        while (mtiBytesRead < mtiAndBitmap.length) {
+        while (messageBytesRead < messageLength) {
             if (System.currentTimeMillis() - startTime > timeoutMs) {
-                throw new SocketTimeoutException("Timeout reading MTI and Bitmap");
+                throw new SocketTimeoutException("Timeout reading response message");
             }
 
-            int bytesRead = inputStream.read(mtiAndBitmap, mtiBytesRead, mtiAndBitmap.length - mtiBytesRead);
+            int bytesRead = inputStream.read(responseMessage, messageBytesRead, messageLength - messageBytesRead);
             if (bytesRead == -1) {
                 throw new IOException("Connection closed by server");
             }
-            mtiBytesRead += bytesRead;
+            messageBytesRead += bytesRead;
         }
 
-        // Parse bitmap to determine which fields are present
-        // Bitmap is at bytes 4-11 (after MTI)
-        byte[] bitmap = new byte[8];
-        System.arraycopy(mtiAndBitmap, 4, bitmap, 0, 8);
+        LogUtil.e(TAG, "✓ Complete response message received: " + messageLength + " bytes");
 
-        // Calculate exact message length by parsing bitmap and data elements
-        int dataElementsLength = calculateDataElementsLength(bitmap);
-        int applicationDataLength = 4 + 8 + dataElementsLength; // MTI (4) + Bitmap (8) + Data Elements
-        int totalMessageLength = 7 + applicationDataLength + 2; // Header (7) + Application Data + CRC (2)
+        // Combine length prefix and message
+        byte[] completeResponse = new byte[4 + messageLength];
+        System.arraycopy(lengthPrefix, 0, completeResponse, 0, 4);
+        System.arraycopy(responseMessage, 0, completeResponse, 4, messageLength);
 
-        LogUtil.e(TAG, "  Calculated message length: " + totalMessageLength + " bytes");
-        LogUtil.e(TAG, "    Header: 7 bytes");
-        LogUtil.e(TAG, "    Application Data: " + applicationDataLength + " bytes (MTI: 4, Bitmap: 8, Data Elements: "
-                + dataElementsLength + ")");
-        LogUtil.e(TAG, "    CRC: 2 bytes");
-
-        // Read remaining data elements and CRC
-        int remainingBytes = dataElementsLength + 2; // Data Elements + CRC
-        byte[] remainingData = new byte[remainingBytes];
-        int remainingBytesRead = 0;
-
-        while (remainingBytesRead < remainingBytes) {
-            if (System.currentTimeMillis() - startTime > timeoutMs) {
-                throw new SocketTimeoutException("Timeout reading response data");
-            }
-
-            int bytesRead = inputStream.read(remainingData, remainingBytesRead, remainingBytes - remainingBytesRead);
-            if (bytesRead == -1) {
-                throw new IOException("Connection closed by server");
-            }
-            remainingBytesRead += bytesRead;
-        }
-
-        // Build complete response message
-        byte[] response = new byte[totalMessageLength];
-        System.arraycopy(header, 0, response, 0, header.length);
-        System.arraycopy(mtiAndBitmap, 0, response, header.length, mtiAndBitmap.length);
-        System.arraycopy(remainingData, 0, response, header.length + mtiAndBitmap.length, remainingData.length);
-
-        LogUtil.e(TAG, "✓ Response received: " + response.length + " bytes");
-
-        return response;
+        LogUtil.e(TAG, "✓ Complete PowerCARD response received: " + completeResponse.length + " bytes");
+        return completeResponse;
     }
 
     /**

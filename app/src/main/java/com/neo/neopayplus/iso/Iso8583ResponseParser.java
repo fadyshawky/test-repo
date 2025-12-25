@@ -9,21 +9,44 @@ import java.nio.ByteOrder;
 /**
  * ISO 8583 Response Parser
  * 
- * Parses ISO 8583 response messages (0110 = Authorization Response)
+ * Parses ISO 8583 response messages:
+ * - 0110: Authorization Response
+ * - 1814: Network Management Response (PowerCARD)
  * Extracts fields: MTI, Response Code (DE39), Auth Code (DE38), RRN (DE37),
- * etc.
+ * Function Code (DE24), Action Code (DE39), etc.
  */
 public class Iso8583ResponseParser {
 
     private static final String TAG = Constant.TAG;
 
     /**
-     * Parse ISO 8583 response message (0110)
+     * Parse ISO 8583 response message (0110 or 1210)
      * 
      * @param applicationData Application data (MTI + Bitmap + Data Elements)
      * @return Parsed response data
      */
     public static ParsedResponse parse0110(byte[] applicationData) {
+        return parseResponse(applicationData, "0110");
+    }
+
+    /**
+     * Parse ISO 8583 response message (1210)
+     * 
+     * @param applicationData Application data (MTI + Bitmap + Data Elements)
+     * @return Parsed response data
+     */
+    public static ParsedResponse parse1210(byte[] applicationData) {
+        return parseResponse(applicationData, "1210");
+    }
+
+    /**
+     * Parse ISO 8583 response message (generic - works for 0110, 1210, etc.)
+     * 
+     * @param applicationData Application data (MTI + Bitmap + Data Elements)
+     * @param expectedMti Expected MTI for logging (e.g., "0110", "1210")
+     * @return Parsed response data
+     */
+    private static ParsedResponse parseResponse(byte[] applicationData, String expectedMti) {
         if (applicationData == null || applicationData.length < 12) {
             LogUtil.e(TAG,
                     "✗ Invalid application data length: " + (applicationData != null ? applicationData.length : 0));
@@ -31,7 +54,7 @@ public class Iso8583ResponseParser {
         }
 
         try {
-            LogUtil.e(TAG, "=== Parsing ISO 8583 Response (0110) ===");
+            LogUtil.e(TAG, "=== Parsing ISO 8583 Response (" + expectedMti + ") ===");
             LogUtil.e(TAG, "  Application data length: " + applicationData.length + " bytes");
 
             ParsedResponse response = new ParsedResponse();
@@ -211,6 +234,106 @@ public class Iso8583ResponseParser {
     }
 
     /**
+     * Parse ISO 8583 Network Management Response (1814) - PowerCARD
+     * 
+     * @param applicationData Application data (MTI + Bitmap + Data Elements)
+     * @return Parsed network management response data
+     */
+    public static NetworkManagementResponse parse1814(byte[] applicationData) {
+        if (applicationData == null || applicationData.length < 12) {
+            LogUtil.e(TAG,
+                    "✗ Invalid application data length: " + (applicationData != null ? applicationData.length : 0));
+            return null;
+        }
+
+        try {
+            LogUtil.e(TAG, "=== Parsing ISO 8583 Network Management Response (1814) ===");
+            LogUtil.e(TAG, "  Application data length: " + applicationData.length + " bytes");
+
+            NetworkManagementResponse response = new NetworkManagementResponse();
+            int offset = 0;
+
+            // Parse MTI (4 bytes = 4 ASCII digits)
+            if (applicationData.length < offset + 4) {
+                LogUtil.e(TAG, "✗ Insufficient data for MTI");
+                return null;
+            }
+            byte[] mtiBytes = new byte[4];
+            System.arraycopy(applicationData, offset, mtiBytes, 0, 4);
+            response.mti = new String(mtiBytes);
+            offset += 4;
+            LogUtil.e(TAG, "  MTI: " + response.mti);
+
+            // Parse Primary Bitmap (8 bytes = 64 bits)
+            if (applicationData.length < offset + 8) {
+                LogUtil.e(TAG, "✗ Insufficient data for bitmap");
+                return null;
+            }
+            byte[] bitmap = new byte[8];
+            System.arraycopy(applicationData, offset, bitmap, 0, 8);
+            offset += 8;
+
+            // Check if secondary bitmap is present (bit 1 of primary bitmap)
+            boolean hasSecondaryBitmap = ((bitmap[0] >> 7) & 0x01) == 1;
+            if (hasSecondaryBitmap) {
+                // Skip secondary bitmap (8 bytes)
+                if (applicationData.length < offset + 8) {
+                    LogUtil.e(TAG, "✗ Insufficient data for secondary bitmap");
+                    return null;
+                }
+                offset += 8;
+            }
+
+            // Parse bitmap to determine which fields are present
+            boolean[] fieldsPresent = parseBitmap(bitmap);
+
+            // DE24: Function Code (field 24) - 3 digits
+            if (fieldsPresent[23]) { // Field 24 (0-indexed: 23)
+                if (applicationData.length >= offset + 3) {
+                    response.functionCode = new String(applicationData, offset, 3);
+                    offset += 3;
+                    LogUtil.e(TAG, "  Function Code: " + response.functionCode);
+                }
+            }
+
+            // DE39: Action Code (field 39) - 3 digits (response code for network management)
+            if (fieldsPresent[38]) { // Field 39 (0-indexed: 38)
+                if (applicationData.length >= offset + 3) {
+                    response.actionCode = new String(applicationData, offset, 3);
+                    offset += 3;
+                    LogUtil.e(TAG, "  Action Code: " + response.actionCode);
+                } else {
+                    LogUtil.e(TAG, "  ⚠️ Insufficient data for DE39 (Action Code)");
+                }
+            } else {
+                LogUtil.e(TAG, "  ⚠️ DE39 (Action Code) not present in bitmap");
+            }
+
+            // DE37: Retrieval Reference Number (field 37) - 12 digits
+            if (fieldsPresent[36]) { // Field 37 (0-indexed: 36)
+                if (applicationData.length >= offset + 12) {
+                    response.rrn = new String(applicationData, offset, 12);
+                    offset += 12;
+                    LogUtil.e(TAG, "  RRN: " + response.rrn);
+                }
+            }
+
+            // Success if action code is 800 (per PowerCARD spec)
+            response.success = "800".equals(response.actionCode);
+
+            LogUtil.e(TAG, "✓ Network Management Response parsed successfully");
+            LogUtil.e(TAG, "  Success: " + response.success);
+
+            return response;
+
+        } catch (Exception e) {
+            LogUtil.e(TAG, "✗ Error parsing Network Management Response: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
      * Parsed response data structure
      */
     public static class ParsedResponse {
@@ -220,5 +343,16 @@ public class Iso8583ResponseParser {
         public String rrn; // DE37: Retrieval Reference Number
         public String field55; // DE55: ICC Data (EMV response tags)
         public boolean approved; // true if responseCode == "00"
+    }
+
+    /**
+     * Network Management Response data structure
+     */
+    public static class NetworkManagementResponse {
+        public String mti; // Message Type Identifier (e.g., "1814")
+        public String functionCode; // DE24: Function Code (e.g., "801", "802", "803")
+        public String actionCode; // DE39: Action Code (e.g., "800" = success)
+        public String rrn; // DE37: Retrieval Reference Number
+        public boolean success; // true if actionCode == "800"
     }
 }

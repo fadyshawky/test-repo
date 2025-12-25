@@ -333,9 +333,10 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                     pinBlock = bytesToHex(request.pinBlock);
                 }
 
-                byte[] applicationData = Iso8583Packer.pack0100(
+                // Use 1200 for direct settlement (bank requirement)
+                byte[] applicationData = Iso8583Packer.pack1200(
                         pan, processingCode, amount, stan, posEntryMode,
-                        currencyCode, field55, terminalId, merchantId, pinBlock);
+                        currencyCode, field55, terminalId, merchantId, pinBlock, "200");
 
                 if (applicationData == null || applicationData.length == 0) {
                     throw new IOException("Failed to pack ISO 8583 message");
@@ -352,15 +353,15 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 }
 
                 // Log ISO message (for debugging)
-                IsoLogger.save(completeMessage, "0100");
+                IsoLogger.save(completeMessage, "1200");
 
                 // Send and receive
                 byte[] responseMessage = socketClient.sendAndReceive(completeMessage, 30000);
 
-                // Parse response
+                // Parse response (1210 for financial transaction response)
                 byte[] responseApplicationData = Iso8583MessageBuilder.parseResponse(responseMessage);
                 Iso8583ResponseParser.ParsedResponse parsedResponse = Iso8583ResponseParser
-                        .parse0110(responseApplicationData);
+                        .parse1210(responseApplicationData);
 
                 if (parsedResponse == null) {
                     throw new IOException("Failed to parse ISO 8583 response");
@@ -704,7 +705,8 @@ public class PaymentApiServiceImpl implements PaymentApiService {
 
         // Send actual PAN (unmasked) to ISO message - masking is only for
         // logging/display
-        byte[] isoFrame = Iso8583Packer.pack0100(
+        // Use 1200 for direct settlement (bank requirement)
+        byte[] isoFrame = Iso8583Packer.pack1200(
                 request.pan != null ? request.pan : "",
                 "000000", // Processing Code
                 request.amount,
@@ -714,18 +716,19 @@ public class PaymentApiServiceImpl implements PaymentApiService {
                 request.field55 != null ? request.field55 : "",
                 PaymentConfig.getTerminalId(),
                 PaymentConfig.getMerchantId(),
-                pinBlockHex // DE52: PIN Block (optional, only for online PIN)
+                pinBlockHex, // DE52: PIN Block (optional, only for online PIN)
+                "200" // Function Code: 200 = exact amount
         );
 
         // Base64 encode raw ISO frame
         if (isoFrame != null && isoFrame.length > 0) {
             String isoRawB64 = Base64.encodeToString(isoFrame, Base64.NO_WRAP);
             json.addProperty("iso_raw_b64", isoRawB64);
-            LogUtil.e(TAG, "✓ Raw ISO8583 frame (0100) attached - length: " + isoFrame.length + " bytes");
+            LogUtil.e(TAG, "✓ Raw ISO8583 frame (1200) attached - length: " + isoFrame.length + " bytes");
 
             // Save ISO frame to disk for debugging (only in DEBUG builds)
             if (com.neo.neopayplus.BuildConfig.DEBUG) {
-                IsoLogger.save(isoFrame, "0100");
+                IsoLogger.save(isoFrame, "1200");
             }
         } else {
             LogUtil.e(TAG, "⚠️ Failed to pack ISO8583 frame");

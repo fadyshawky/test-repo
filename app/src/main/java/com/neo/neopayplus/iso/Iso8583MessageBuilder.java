@@ -5,10 +5,13 @@ import com.neo.neopayplus.config.PaymentConfig;
 import com.neo.neopayplus.utils.LogUtil;
 
 /**
- * ISO 8583 Message Builder (MsgSpec v341)
+ * ISO 8583 Message Builder (MsgSpec v341 + PowerCARD Protocol)
  * 
- * Builds complete ISO 8583 messages with:
- * - Header (ADR + CB + TPDU)
+ * Builds complete ISO 8583 messages with PowerCARD protocol structure:
+ * - Message Length Prefix (4 bytes ASCII)
+ * - Protocol Identification (3 bytes ASCII)
+ * - PowerCARD Header (8 bytes)
+ * - TPDU (5 bytes)
  * - Application Data (MTI + Bitmap + Data Elements)
  * - CRC (HDLC checksum)
  */
@@ -25,42 +28,95 @@ public class Iso8583MessageBuilder {
     private static final byte CB_DEFAULT = 0x00; // HDLC control byte
 
     /**
-     * Build complete ISO 8583 message with header and CRC
+     * Build complete ISO 8583 message with PowerCARD protocol structure
      * 
      * @param applicationData    Application data (MTI + Bitmap + Data Elements)
      *                           from Iso8583Packer
      * @param destinationAddress Destination address (2 bytes, Network International
      *                           Identifier)
      * @param originatorAddress  Originator address (2 bytes, Terminal ID)
-     * @return Complete ISO 8583 message with header and CRC
+     * @return Complete ISO 8583 message with PowerCARD protocol structure
      */
     public static byte[] buildCompleteMessage(byte[] applicationData,
             byte[] destinationAddress,
             byte[] originatorAddress) {
+        return buildCompleteMessage(applicationData, destinationAddress, originatorAddress, 
+                PowerCardHeader.PRODUCT_ACQUIRER_ONLY, "000");
+    }
+
+    /**
+     * Build complete ISO 8583 message with PowerCARD protocol structure
+     * 
+     * @param applicationData    Application data (MTI + Bitmap + Data Elements)
+     * @param destinationAddress Destination address (2 bytes)
+     * @param originatorAddress  Originator address (2 bytes, Terminal ID)
+     * @param productType        PowerCARD product type ('6', '7', or '8')
+     * @param errorElementNumber Error element number ('000' if no error)
+     * @return Complete ISO 8583 message with PowerCARD protocol structure
+     */
+    public static byte[] buildCompleteMessage(byte[] applicationData,
+            byte[] destinationAddress,
+            byte[] originatorAddress,
+            char productType,
+            String errorElementNumber) {
         try {
-            LogUtil.e(TAG, "=== Building ISO 8583 Message (MsgSpec v341) ===");
+            LogUtil.e(TAG, "=== Building ISO 8583 Message (PowerCARD Protocol) ===");
+
+            // Build PowerCARD header (8 bytes)
+            byte[] powerCardHeader = PowerCardHeader.buildHeader(productType, errorElementNumber);
+
+            // Build protocol identification (3 bytes)
+            byte[] protocolId = PowerCardProtocol.buildProtocolIdentification();
 
             // Build TPDU (5 bytes)
             byte[] tpdu = buildTpdu(TPDU_ID_TRANSACTION, destinationAddress, originatorAddress);
 
-            // Build header (ADR + CB + TPDU)
-            byte[] header = buildHeader(tpdu);
+            // Build HDLC header (ADR + CB) - 2 bytes
+            byte[] hdlcHeader = new byte[2];
+            hdlcHeader[0] = ADR_DEFAULT;
+            hdlcHeader[1] = CB_DEFAULT;
 
-            // Calculate CRC (HDLC checksum) for header + application data
-            byte[] dataForCrc = new byte[header.length + applicationData.length];
-            System.arraycopy(header, 0, dataForCrc, 0, header.length);
-            System.arraycopy(applicationData, 0, dataForCrc, header.length, applicationData.length);
+            // Calculate CRC (HDLC checksum) for: protocol ID + PowerCARD header + TPDU + application data
+            // Note: CRC is calculated over protocol ID + PowerCARD header + TPDU + application data
+            byte[] dataForCrc = new byte[protocolId.length + powerCardHeader.length + tpdu.length + applicationData.length];
+            int offset = 0;
+            System.arraycopy(protocolId, 0, dataForCrc, offset, protocolId.length);
+            offset += protocolId.length;
+            System.arraycopy(powerCardHeader, 0, dataForCrc, offset, powerCardHeader.length);
+            offset += powerCardHeader.length;
+            System.arraycopy(tpdu, 0, dataForCrc, offset, tpdu.length);
+            offset += tpdu.length;
+            System.arraycopy(applicationData, 0, dataForCrc, offset, applicationData.length);
 
             byte[] crc = calculateHdlcCrc(dataForCrc);
 
-            // Build complete message: Header + Application Data + CRC
-            byte[] completeMessage = new byte[header.length + applicationData.length + crc.length];
-            System.arraycopy(header, 0, completeMessage, 0, header.length);
-            System.arraycopy(applicationData, 0, completeMessage, header.length, applicationData.length);
-            System.arraycopy(crc, 0, completeMessage, header.length + applicationData.length, crc.length);
+            // Calculate message length (excluding length prefix itself)
+            // Structure: Protocol ID (3) + PowerCARD Header (8) + TPDU (5) + Application Data + CRC (2)
+            int messageLength = PowerCardProtocol.calculateMessageLength(applicationData.length);
 
-            LogUtil.e(TAG, "✓ Complete message built:");
-            LogUtil.e(TAG, "  Header: " + header.length + " bytes");
+            // Build message length prefix (4 bytes ASCII)
+            byte[] lengthPrefix = PowerCardProtocol.buildMessageLengthPrefix(messageLength);
+
+            // Build complete message: Length Prefix + Protocol ID + PowerCARD Header + TPDU + Application Data + CRC
+            byte[] completeMessage = new byte[lengthPrefix.length + messageLength];
+            offset = 0;
+            System.arraycopy(lengthPrefix, 0, completeMessage, offset, lengthPrefix.length);
+            offset += lengthPrefix.length;
+            System.arraycopy(protocolId, 0, completeMessage, offset, protocolId.length);
+            offset += protocolId.length;
+            System.arraycopy(powerCardHeader, 0, completeMessage, offset, powerCardHeader.length);
+            offset += powerCardHeader.length;
+            System.arraycopy(tpdu, 0, completeMessage, offset, tpdu.length);
+            offset += tpdu.length;
+            System.arraycopy(applicationData, 0, completeMessage, offset, applicationData.length);
+            offset += applicationData.length;
+            System.arraycopy(crc, 0, completeMessage, offset, crc.length);
+
+            LogUtil.e(TAG, "✓ Complete PowerCARD message built:");
+            LogUtil.e(TAG, "  Length Prefix: " + lengthPrefix.length + " bytes");
+            LogUtil.e(TAG, "  Protocol ID: " + protocolId.length + " bytes");
+            LogUtil.e(TAG, "  PowerCARD Header: " + powerCardHeader.length + " bytes");
+            LogUtil.e(TAG, "  TPDU: " + tpdu.length + " bytes");
             LogUtil.e(TAG, "  Application Data: " + applicationData.length + " bytes");
             LogUtil.e(TAG, "  CRC: " + crc.length + " bytes");
             LogUtil.e(TAG, "  Total: " + completeMessage.length + " bytes");
@@ -69,6 +125,7 @@ public class Iso8583MessageBuilder {
 
         } catch (Exception e) {
             LogUtil.e(TAG, "✗ Error building ISO 8583 message: " + e.getMessage());
+            e.printStackTrace();
             return new byte[0];
         }
     }
@@ -177,37 +234,61 @@ public class Iso8583MessageBuilder {
     }
 
     /**
-     * Parse ISO 8583 response message
-     * Extracts application data from complete message (removes header and CRC)
+     * Parse ISO 8583 response message with PowerCARD protocol structure
+     * Extracts application data from complete message
      * 
-     * @param completeMessage Complete message with header and CRC
+     * @param completeMessage Complete message with PowerCARD protocol structure
      * @return Application data (MTI + Bitmap + Data Elements)
      */
     public static byte[] parseResponse(byte[] completeMessage) {
-        if (completeMessage == null || completeMessage.length < 9) {
+        if (completeMessage == null || completeMessage.length < 22) { // Minimum: 4 (length) + 3 (protocol) + 8 (header) + 5 (TPDU) + 2 (CRC) = 22
             LogUtil.e(TAG, "✗ Invalid message length: " + (completeMessage != null ? completeMessage.length : 0));
             return new byte[0];
         }
 
-        // Header is 7 bytes (ADR + CB + TPDU)
-        // CRC is 2 bytes at the end
-        int headerLength = 7;
-        int crcLength = 2;
-        int applicationDataLength = completeMessage.length - headerLength - crcLength;
+        try {
+            int offset = 0;
 
-        if (applicationDataLength <= 0) {
-            LogUtil.e(TAG, "✗ Invalid application data length: " + applicationDataLength);
+            // Parse message length prefix (4 bytes)
+            int messageLength = PowerCardProtocol.parseMessageLengthPrefix(completeMessage);
+            offset += 4;
+
+            // Parse protocol identification (3 bytes)
+            String protocolId = PowerCardProtocol.parseProtocolIdentification(
+                    java.util.Arrays.copyOfRange(completeMessage, offset, offset + 3));
+            offset += 3;
+
+            // Parse PowerCARD header (8 bytes)
+            PowerCardHeader.PowerCardHeaderInfo headerInfo = PowerCardHeader.parseHeader(
+                    java.util.Arrays.copyOfRange(completeMessage, offset, offset + 8));
+            offset += 8;
+
+            // Skip TPDU (5 bytes)
+            offset += 5;
+
+            // Extract application data (remaining bytes minus CRC)
+            int crcLength = 2;
+            int applicationDataLength = completeMessage.length - offset - crcLength;
+
+            if (applicationDataLength <= 0) {
+                LogUtil.e(TAG, "✗ Invalid application data length: " + applicationDataLength);
+                return new byte[0];
+            }
+
+            byte[] applicationData = new byte[applicationDataLength];
+            System.arraycopy(completeMessage, offset, applicationData, 0, applicationDataLength);
+
+            LogUtil.e(TAG, "✓ Parsed PowerCARD response message:");
+            LogUtil.e(TAG, "  Protocol ID: " + protocolId);
+            LogUtil.e(TAG, "  Product Type: " + headerInfo.productType);
+            LogUtil.e(TAG, "  Application Data: " + applicationDataLength + " bytes");
+
+            return applicationData;
+
+        } catch (Exception e) {
+            LogUtil.e(TAG, "✗ Error parsing response message: " + e.getMessage());
+            e.printStackTrace();
             return new byte[0];
         }
-
-        byte[] applicationData = new byte[applicationDataLength];
-        System.arraycopy(completeMessage, headerLength, applicationData, 0, applicationDataLength);
-
-        LogUtil.e(TAG, "✓ Parsed response message:");
-        LogUtil.e(TAG, "  Header: " + headerLength + " bytes");
-        LogUtil.e(TAG, "  Application Data: " + applicationDataLength + " bytes");
-        LogUtil.e(TAG, "  CRC: " + crcLength + " bytes");
-
-        return applicationData;
     }
 }
